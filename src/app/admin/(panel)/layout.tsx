@@ -4,21 +4,22 @@ import { Toaster } from "sonner";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminBottomBar, AdminMobileTop } from "@/components/admin/admin-mobile-nav";
 import { PanelSkeleton } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { OutboxStatus } from "@/components/admin/outbox";
+import { requireAdminView } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: { default: "Dashboard", template: "%s · Admin · Apna Store" },
   robots: { index: false, follow: false },
 };
 
-/** Gate for the panel content. Pages ALSO call requireAdmin() themselves. */
+/** Gate for the panel content. Pages ALSO call requireAdminView() themselves. */
 async function AdminGate({ children }: { children: React.ReactNode }) {
-  await requireAdmin();
+  await requireAdminView();
   return children;
 }
 
 async function UserBadge({ compact }: { compact?: boolean }) {
-  const user = await requireAdmin();
+  const user = await requireAdminView();
   const initial = user.name.trim().charAt(0).toUpperCase() || "A";
   if (compact) {
     return (
@@ -42,6 +43,22 @@ async function UserBadge({ compact }: { compact?: boolean }) {
   );
 }
 
+/*
+ * The <Suspense> boundaries below only cover a full page load. On a client
+ * navigation this layout (and any folder the two URLs share) stays mounted and
+ * only the deeper segments re-render, so every page folder has its own
+ * loading.tsx (this same PanelSkeleton) that shows at once while requireAdminView()
+ * and the page's queries run. Next checks this in dev and logs "encountered
+ * uncached data during prerendering or a navigation" for a page folder without
+ * one, so add one with every new admin page.
+ *
+ * Caching: pages read the session and the DB only through private-cached
+ * helpers (requireAdminView, lib/data admin functions), so a visited page is
+ * kept in the browser for the `admin` cacheLife profile (5 min) and shows
+ * instantly when you come back. Admin Server Actions clear it. A new admin page
+ * must do the same: any uncached request-time read makes it re-render on
+ * every visit.
+ */
 export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="min-h-dvh bg-ink-900 lg:pl-64">
@@ -60,13 +77,18 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
         }
       />
 
-      <main className="mx-auto max-w-site px-4 pt-20 pb-28 lg:px-10 lg:pt-10 lg:pb-12">
+      <main className="mx-auto max-w-site px-3 pt-[4.5rem] pb-28 sm:px-4 lg:px-8 lg:pt-8 lg:pb-12">
         <Suspense fallback={<PanelSkeleton />}>
           <AdminGate>{children}</AdminGate>
         </Suspense>
       </main>
 
       <AdminBottomBar />
+      {/* Background sync of optimistic saves (see components/admin/outbox.tsx) */}
+      {/* Suspense: it reads the URL (useRouter/usePathname), which can't be prerendered */}
+      <Suspense fallback={null}>
+        <OutboxStatus />
+      </Suspense>
       <Toaster
         theme="dark"
         position="top-center"
