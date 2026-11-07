@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { z } from "zod";
 import { PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminView } from "@/lib/auth/session";
 import { getCategoryWithFields } from "@/lib/data/categories";
 import { CategoryForm } from "../category-form";
 
 export const metadata: Metadata = { title: "Edit category" };
 
 export default async function EditCategoryPage({ params }: PageProps<"/admin/categories/[id]">) {
-  await requireAdmin();
+  await requireAdminView();
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const data = await getCategoryWithFields(id);

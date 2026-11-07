@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { storage, UploadRejected, uploadFolders } from "@/lib/storage";
+import { deleteUnreferencedUploads } from "@/lib/storage/cleanup";
 import type { ActionResult } from "@/lib/actions";
 
 const schema = z.object({
@@ -30,4 +31,17 @@ export async function getUploadUrl(
     console.error("[getUploadUrl]", e);
     return { ok: false, error: "Couldn't prepare the upload. Please try again." };
   }
+}
+
+/**
+ * Delete a file the admin uploaded but then replaced/removed before saving.
+ * Only touches files in our bucket that nothing in the database references,
+ * so a saved image is never removed here — that happens when the form is saved.
+ */
+export async function discardUpload(url: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = z.url().max(2000).safeParse(url);
+  if (!parsed.success) return { ok: false, error: "Invalid file." };
+  await deleteUnreferencedUploads([parsed.data]);
+  return { ok: true };
 }

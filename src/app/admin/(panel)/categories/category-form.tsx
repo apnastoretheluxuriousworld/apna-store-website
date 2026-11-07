@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useId, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch, type Control, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
@@ -11,11 +10,10 @@ import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Loader2, Lock, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, GripVertical, Plus, Trash2, X } from "lucide-react";
 import { Card } from "@/components/admin/ui";
-import { Field, Switch, inputClass, ConfirmDialog } from "@/components/admin/form";
+import { Field, Switch, inputClass, ConfirmDialog, FormActions } from "@/components/admin/form";
 import { ImageUpload } from "@/components/admin/image-upload";
-import { Button } from "@/components/ui/button";
 import {
   categoryFormSchema,
   FIELD_TYPE_LABELS,
@@ -25,7 +23,7 @@ import {
   splitOptions,
   type CategoryFormValues,
 } from "@/lib/validation/category";
-import { deleteCategory, saveCategory } from "./actions";
+import { enqueue, pendingSave } from "@/components/admin/outbox";
 import { cn } from "@/lib/utils";
 
 type Output = z.output<typeof categoryFormSchema>;
@@ -49,8 +47,6 @@ export function CategoryForm({
 }) {
   const router = useRouter();
   const editing = !!initial;
-  const [saving, startSaving] = useTransition();
-  const [deleting, startDeleting] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [slugTouched, setSlugTouched] = useState(editing);
 
@@ -65,10 +61,23 @@ export function CategoryForm({
       fields: [{ ...newField(), label: "Brand", key: "brand", required: true, filterable: true }],
     },
   });
-  const { register, control, handleSubmit, setValue, getValues, setError, formState } = form;
+  const { register, control, handleSubmit, setValue, getValues, formState } = form;
   const errors = formState.errors;
   const fieldsArray = useFieldArray({ control, name: "fields", keyName: "rhfId" });
 
+  // After a save the page re-renders with fresh server data. Load it into the form so
+  // it's clean again (hides the save bar) and newly added rows pick up their ids.
+  // Unsaved edits are never overwritten by a background refresh.
+  // If a save for this category is still queued, show those values (newer than the server's).
+  useEffect(() => {
+    if (!initial || form.formState.isDirty) return;
+    const queued = pendingSave(initial.id)?.formValues as CategoryFormValues | undefined;
+    form.reset(queued ?? initial);
+  }, [initial, form]);
+  const showActions = formState.isDirty;
+
+  // SSR-stable id for dnd-kit's aria-describedby (its own counter differs between server and browser → hydration mismatch).
+  const dndId = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -82,48 +91,51 @@ export function CategoryForm({
   }
 
   const onSubmit = handleSubmit((values) => {
+    const id = initial?.id ?? crypto.randomUUID();
     const payload = {
       ...values,
-      id: initial?.id,
+      id,
       imageUrl: values.imageUrl ?? "",
       fields: values.fields.map(({ optionsText, ...f }) => ({ ...f, options: splitOptions(optionsText) })),
     };
-    startSaving(async () => {
-      const res = await saveCategory(payload);
-      if (!res.ok) {
-        for (const [path, message] of Object.entries(res.fieldErrors ?? {})) {
-          setError(path.replace(/^fields\.(\d+)\.options$/, "fields.$1.optionsText") as never, { message });
-        }
-        toast.error(res.error);
-        return;
-      }
-      toast.success(editing ? "Category saved" : "Category created");
-      if (editing) router.refresh();
-      else router.push(`/admin/categories/${res.data.id}`);
+    // Optimistic: show it as saved now; the outbox sends it in the background.
+    enqueue({
+      kind: "category.save",
+      entityId: id,
+      label: values.name,
+      payload,
+      formValues: form.getValues(),
+      editHref: editing ? `/admin/categories/${id}` : undefined,
+      preview: {
+        id,
+        name: values.name,
+        slug: values.slug,
+        description: values.description || null,
+        imageUrl: values.imageUrl || null,
+        isActive: values.isActive,
+        productCount: editing ? productCount : 0,
+        fieldCount: values.fields.length,
+      },
     });
+    toast.success(editing ? "Category saved" : "Category created");
+    form.reset(form.getValues());
+    router.push("/admin/categories");
   });
 
   function onDelete() {
     if (!initial) return;
-    startDeleting(async () => {
-      const res = await deleteCategory(initial.id);
-      if (!res.ok) {
-        toast.error(res.error);
-        setConfirmDelete(false);
-        return;
-      }
-      toast.success("Category deleted");
-      router.push("/admin/categories");
-    });
+    enqueue({ kind: "category.delete", entityId: initial.id, label: initial.name, payload: initial.id });
+    toast.success("Category deleted");
+    router.push("/admin/categories");
   }
 
   const fieldErrors = errors.fields;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-4 pb-20 lg:space-y-6 lg:pb-0">
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+    <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
+      <div className="grid gap-3 lg:grid-cols-3 lg:gap-5">
         {/* Details */}
-        <Card className="space-y-5 lg:col-span-2">
+        <Card className="space-y-4 lg:col-span-2">
           <Field label="Name" error={errors.name?.message} htmlFor="name">
             <input
               id="name"
@@ -136,29 +148,24 @@ export function CategoryForm({
             />
           </Field>
 
-          <Field
-            label="URL slug"
-            error={errors.slug?.message}
-            hint={<SlugHint control={control} />}
-            htmlFor="slug"
-          >
-            <input
-              id="slug"
-              className={cn(inputClass, "font-mono text-xs")}
-              aria-invalid={!!errors.slug}
-              {...register("slug", { onChange: () => setSlugTouched(true) })}
-            />
+          <Field label="URL slug" error={errors.slug?.message} htmlFor="slug">
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 font-mono text-xs text-mute">/shop/</span>
+              <input
+                id="slug"
+                className={cn(inputClass, "pl-[4.1rem] font-mono text-xs")}
+                aria-invalid={!!errors.slug}
+                {...register("slug", { onChange: () => setSlugTouched(true) })}
+              />
+            </div>
           </Field>
 
-          <Field label="Short description" error={errors.description?.message} hint="Shown under the name in menus and on the collection page." htmlFor="description">
+          <Field label="Short description" error={errors.description?.message} htmlFor="description">
             <input id="description" className={inputClass} placeholder="e.g. Timepieces of distinction" {...register("description")} />
           </Field>
 
           <div className="flex items-center justify-between rounded-lg border border-ink-600/70 px-4 py-3">
-            <div>
-              <p className="text-sm text-ivory">Visible in store</p>
-              <p className="text-xs text-mute">Hidden categories stay in admin but disappear from the shop.</p>
-            </div>
+            <p className="text-sm text-ivory">Visible in store</p>
             <Controller
               control={control}
               name="isActive"
@@ -169,7 +176,7 @@ export function CategoryForm({
 
         {/* Image */}
         <Card>
-          <Field label="Cover image" error={errors.imageUrl?.message} hint="Used on the Shop page tiles. Portrait 4:5 works best.">
+          <Field label="Cover image" error={errors.imageUrl?.message}>
             <Controller
               control={control}
               name="imageUrl"
@@ -183,22 +190,16 @@ export function CategoryForm({
 
       {/* Fields builder */}
       <Card>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-ivory">Product fields</h2>
-            <p className="mt-1 max-w-xl text-xs text-mute">
-              Every product in this category gets these fields (e.g. Movement, Case Size). Drag to reorder. Admins can
-              still add extra fields to a single product.
-            </p>
-          </div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-ivory">Product fields</h2>
           <span className="text-xs text-mute">{fieldsArray.fields.length} / 30</span>
         </div>
 
         {typeof fieldErrors?.message === "string" && <p className="mb-3 text-xs text-red-400">{fieldErrors.message}</p>}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEnd}>
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEnd}>
           <SortableContext items={fieldsArray.fields.map((f) => f.rhfId)} strategy={verticalListSortingStrategy}>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {fieldsArray.fields.map((f, i) => (
                 <FieldRow
                   key={f.rhfId}
@@ -206,7 +207,6 @@ export function CategoryForm({
                   index={i}
                   control={control}
                   register={register}
-                  locked={!!f.id}
                   errors={fieldErrors?.[i]}
                   onLabelChange={(label) => {
                     const cur = getValues(`fields.${i}`);
@@ -225,7 +225,7 @@ export function CategoryForm({
           type="button"
           onClick={() => fieldsArray.append(newField())}
           disabled={fieldsArray.fields.length >= 30}
-          className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg border border-dashed border-gold-500/40 px-4 text-sm text-gold-300 hover:bg-gold-500/5 disabled:opacity-50"
+          className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-dashed border-gold-500/40 px-4 text-sm text-gold-300 hover:bg-gold-500/5 disabled:opacity-50"
         >
           <Plus className="size-4" /> Add field
         </button>
@@ -252,23 +252,15 @@ export function CategoryForm({
         </Card>
       )}
 
-      {/* Sticky save bar (above the admin bottom bar on mobile) */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-ink-600/60 bg-ink-950/90 px-4 py-3 backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-        <div className="flex items-center justify-end gap-2">
-          <Link href="/admin/categories" className="h-11 rounded-md px-4 text-sm leading-11 text-stone hover:text-ivory">
-            Cancel
-          </Link>
-          <Button type="submit" disabled={saving} className="min-w-36">
-            {saving ? <Loader2 className="size-4 animate-spin" /> : editing ? "Save changes" : "Create category"}
-          </Button>
-        </div>
-      </div>
+      {showActions && (
+        <FormActions cancelHref="/admin/categories" saving={false} label={editing ? "Save changes" : "Create category"} />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}
         title="Delete this category?"
         body={<>“{initial?.name}” and its field definitions will be removed permanently.</>}
-        pending={deleting}
+        pending={false}
         onConfirm={onDelete}
         onCancel={() => setConfirmDelete(false)}
       />
@@ -276,23 +268,15 @@ export function CategoryForm({
   );
 }
 
-function SlugHint({ control }: { control: Control<CategoryFormValues, unknown, Output> }) {
-  const slug = useWatch({ control, name: "slug" });
-  return (
-    <>
-      Page address: <span className="font-mono text-stone">/shop/{slug || "…"}</span>
-    </>
-  );
-}
-
 type RowErrors = Partial<Record<"label" | "key" | "optionsText" | "unit", { message?: string }>> | undefined;
+
+const rowInput = cn(inputClass, "h-9 px-2.5");
 
 function FieldRow({
   sortId,
   index,
   control,
   register,
-  locked,
   errors,
   onLabelChange,
   onRemove,
@@ -301,47 +285,55 @@ function FieldRow({
   index: number;
   control: Control<CategoryFormValues, unknown, Output>;
   register: UseFormRegister<CategoryFormValues>;
-  locked: boolean;
   errors: RowErrors;
   onLabelChange: (label: string) => void;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: sortId });
   const type = useWatch({ control, name: `fields.${index}.type` });
+  const hasUnit = type === "text" || type === "number";
+  // The key is generated from the label and never shown; surface its errors under the label.
+  const labelError = errors?.label?.message ?? errors?.key?.message;
+  const optionsText = useWatch({ control, name: `fields.${index}.optionsText` }) ?? "";
+  const optionCount = splitOptions(optionsText).length;
+  // null = user hasn't toggled yet: open while there are no options so they're easy to add.
+  const [optionsOpen, setOptionsOpen] = useState<boolean | null>(null);
+  const showOptions = type === "select" && (optionsOpen ?? optionCount === 0);
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "rounded-xl border border-ink-600/70 bg-ink-900/70 p-3 sm:p-4",
+        "rounded-lg border border-ink-600/70 bg-ink-900/70 py-2 pr-1 pl-0.5 sm:p-2.5",
         isDragging && "relative z-10 border-gold-500/40 shadow-2xl",
       )}
     >
-      <div className="flex gap-2 sm:gap-3">
+      <div className="flex gap-1 sm:gap-2">
         <button
           type="button"
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
-          className="mt-2 flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-mute hover:text-gold-400 active:cursor-grabbing"
+          className="flex h-9 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-mute hover:text-gold-400 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
 
-        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[1fr_10rem]">
-          <div className="space-y-1">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-[1fr_8rem_10rem]">
+          <div className="col-span-2 space-y-1 sm:col-span-1">
             <input
-              className={inputClass}
+              className={rowInput}
               placeholder="Field label, e.g. Movement"
               aria-label="Field label"
-              aria-invalid={!!errors?.label}
+              aria-invalid={!!labelError}
               {...register(`fields.${index}.label`, { onChange: (e) => onLabelChange(e.target.value) })}
             />
-            {errors?.label?.message && <p className="text-xs text-red-400">{errors.label.message}</p>}
+            <input type="hidden" aria-label="Field key" {...register(`fields.${index}.key`)} />
+            {labelError && <p className="text-xs text-red-400">{labelError}</p>}
           </div>
-          <select className={inputClass} aria-label="Field type" {...register(`fields.${index}.type`)}>
+          <select className={cn(rowInput, "select-chevron pr-6", !hasUnit && type !== "select" && "col-span-2 sm:col-span-2")} aria-label="Field type" {...register(`fields.${index}.type`)}>
             {FIELD_TYPES.map((t) => (
               <option key={t} value={t}>
                 {FIELD_TYPE_LABELS[t]}
@@ -349,46 +341,47 @@ function FieldRow({
             ))}
           </select>
 
-          <div className="space-y-1">
-            <div className="relative">
-              <input
-                className={cn(inputClass, "h-9 pr-8 font-mono text-xs", locked && "text-mute")}
-                placeholder="key"
-                aria-label="Field key"
-                readOnly={locked}
-                title={locked ? "Keys can't change after saving — products store values under this key" : undefined}
-                aria-invalid={!!errors?.key}
-                {...register(`fields.${index}.key`)}
-              />
-              {locked && <Lock className="absolute top-1/2 right-3 size-3 -translate-y-1/2 text-mute" />}
-            </div>
-            {errors?.key?.message && <p className="text-xs text-red-400">{errors.key.message}</p>}
-          </div>
-          {type === "text" || type === "number" ? (
-            <input className={cn(inputClass, "h-9 text-xs")} placeholder="Unit (mm, ml…)" aria-label="Unit" {...register(`fields.${index}.unit`)} />
-          ) : (
-            <span className="hidden sm:block" />
+          {hasUnit && (
+            <input className={rowInput} placeholder="Unit (mm, ml…)" aria-label="Unit" {...register(`fields.${index}.unit`)} />
           )}
 
           {type === "select" && (
-            <div className="space-y-1 sm:col-span-2">
-              <input
-                className={cn(inputClass, "h-9 text-xs")}
-                placeholder="Options, comma separated — e.g. Automatic, Quartz, Manual"
-                aria-label="Dropdown options"
-                aria-invalid={!!errors?.optionsText}
-                {...register(`fields.${index}.optionsText`)}
-              />
-              {errors?.optionsText?.message && <p className="text-xs text-red-400">{errors.optionsText.message}</p>}
-            </div>
+            <button
+              type="button"
+              onClick={() => setOptionsOpen(!showOptions)}
+              aria-expanded={showOptions}
+              className={cn(
+                rowInput,
+                "flex items-center justify-between gap-1 text-left",
+                showOptions && "border-gold-500/50",
+                errors?.optionsText && "border-red-500/60",
+              )}
+            >
+              <span className={cn("truncate", optionCount === 0 && "text-mute")}>
+                {optionCount === 0 ? "Add options" : `${optionCount} option${optionCount === 1 ? "" : "s"}`}
+              </span>
+              <ChevronDown className={cn("size-4 shrink-0 text-mute transition-transform", showOptions && "rotate-180")} />
+            </button>
           )}
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:col-span-2">
+          {type === "select" && errors?.optionsText?.message && (
+            <p className="col-span-full text-xs text-red-400">{errors.optionsText.message}</p>
+          )}
+
+          {showOptions && (
+            <Controller
+              control={control}
+              name={`fields.${index}.optionsText`}
+              render={({ field }) => <OptionsEditor value={field.value ?? ""} onChange={field.onChange} />}
+            />
+          )}
+
+          <div className="col-span-full flex flex-nowrap items-center gap-x-4">
             <Controller
               control={control}
               name={`fields.${index}.required`}
               render={({ field }) => (
-                <label className="flex items-center gap-2 text-xs text-stone">
+                <label className="flex items-center gap-2 text-xs whitespace-nowrap text-stone">
                   <Switch size="sm" checked={field.value ?? false} onChange={field.onChange} label="Required" /> Required
                 </label>
               )}
@@ -397,9 +390,8 @@ function FieldRow({
               control={control}
               name={`fields.${index}.filterable`}
               render={({ field }) => (
-                <label className="flex items-center gap-2 text-xs text-stone">
-                  <Switch size="sm" checked={field.value ?? false} onChange={field.onChange} label="Shop filter" /> Show as
-                  shop filter
+                <label className="flex items-center gap-2 text-xs whitespace-nowrap text-stone">
+                  <Switch size="sm" checked={field.value ?? false} onChange={field.onChange} label="Shop filter" /> Shop filter
                 </label>
               )}
             />
@@ -410,11 +402,84 @@ function FieldRow({
           type="button"
           onClick={onRemove}
           aria-label="Remove field"
-          className="mt-1.5 grid size-8 shrink-0 place-items-center rounded-lg text-mute hover:bg-red-500/10 hover:text-red-300"
+          className="grid h-9 w-7 shrink-0 place-items-center rounded-lg text-mute hover:bg-red-500/10 hover:text-red-300"
         >
           <Trash2 className="size-4" />
         </button>
       </div>
     </li>
+  );
+}
+
+/**
+ * One input per dropdown option. The form still stores them as a single
+ * comma-separated string (optionsText), so commas are stripped from each option.
+ */
+function OptionsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [items, setItems] = useState(() => splitOptions(value));
+  const [draft, setDraft] = useState("");
+
+  const commit = (next: string[]) => {
+    setItems(next);
+    onChange(next.join(", "));
+  };
+  const add = () => {
+    const v = draft.replace(/,/g, "").trim();
+    if (!v) return;
+    if (!items.some((o) => o.trim().toLowerCase() === v.toLowerCase())) commit([...items, v]);
+    setDraft("");
+  };
+
+  return (
+    <div className="col-span-full space-y-1.5 rounded-lg border border-ink-600/60 bg-ink-950/40 p-2">
+      {items.length > 0 && (
+        <ul className="space-y-1.5">
+          {items.map((opt, i) => (
+            <li key={i} className="flex items-center gap-1.5">
+              <input
+                className={cn(rowInput, "h-8")}
+                value={opt}
+                aria-label={`Option ${i + 1}`}
+                onChange={(e) => commit(items.map((o, j) => (j === i ? e.target.value.replace(/,/g, "") : o)))}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+              />
+              <button
+                type="button"
+                onClick={() => commit(items.filter((_, j) => j !== i))}
+                aria-label={`Remove option ${opt || i + 1}`}
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-mute hover:bg-red-500/10 hover:text-red-300"
+              >
+                <X className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-1.5">
+        <input
+          className={cn(rowInput, "h-8")}
+          value={draft}
+          placeholder={items.length === 0 ? "First option, e.g. Automatic" : "Add option"}
+          aria-label="New dropdown option"
+          onChange={(e) => setDraft(e.target.value.replace(/,/g, ""))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          onBlur={add}
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!draft.trim()}
+          aria-label="Add option"
+          className="grid size-8 shrink-0 place-items-center rounded-lg border border-gold-500/40 text-gold-300 hover:bg-gold-500/10 disabled:opacity-40"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { ImagePlus, Link2, Loader2, Trash2, UploadCloud } from "lucide-react";
-import { getUploadUrl } from "@/app/admin/(panel)/upload-actions";
+import { discardUpload, getUploadUrl } from "@/app/admin/(panel)/upload-actions";
 import { inputClass } from "./form";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ async function prepareImage(file: File, maxSide = 1600): Promise<Blob> {
   return blob && blob.size < file.size ? blob : file;
 }
 
-function putWithProgress(url: string, body: Blob, onProgress: (pct: number) => void) {
+export function putWithProgress(url: string, body: Blob, onProgress: (pct: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
@@ -36,6 +36,17 @@ function putWithProgress(url: string, body: Blob, onProgress: (pct: number) => v
   });
 }
 
+export type UploadFolder = "categories" | "products" | "hero" | "reels" | "testimonials" | "reviews";
+
+/** Resize (photos only; videos go as-is) → presign → PUT straight to the bucket. Returns the public URL. */
+export async function uploadImage(file: File, folder: UploadFolder, onProgress: (pct: number) => void) {
+  const blob = await prepareImage(file);
+  const res = await getUploadUrl({ folder, contentType: blob.type, size: blob.size });
+  if (!res.ok) throw new Error(res.error);
+  await putWithProgress(res.data.uploadUrl, blob, onProgress);
+  return res.data.publicUrl;
+}
+
 export function ImageUpload({
   value,
   onChange,
@@ -45,7 +56,7 @@ export function ImageUpload({
 }: {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
-  folder: "categories" | "products" | "hero" | "reels" | "testimonials";
+  folder: UploadFolder;
   aspect?: string;
   label?: string;
 }) {
@@ -53,16 +64,23 @@ export function ImageUpload({
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [urlMode, setUrlMode] = useState(false);
+  // Files uploaded during this visit. If one is replaced/removed before saving, nothing
+  // will ever reference it, so delete it from the bucket straight away. (A previously
+  // saved image is deleted by the server when the form is saved, so Cancel still works.)
+  const uploadedHere = useRef(new Set<string>());
+
+  function change(next: string | null) {
+    if (value && value !== next && uploadedHere.current.delete(value)) void discardUpload(value);
+    onChange(next);
+  }
 
   async function upload(file: File) {
     setError(null);
     setProgress(0);
     try {
-      const blob = await prepareImage(file);
-      const res = await getUploadUrl({ folder, contentType: blob.type, size: blob.size });
-      if (!res.ok) throw new Error(res.error);
-      await putWithProgress(res.data.uploadUrl, blob, setProgress);
-      onChange(res.data.publicUrl);
+      const url = await uploadImage(file, folder, setProgress);
+      uploadedHere.current.add(url);
+      change(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -74,7 +92,7 @@ export function ImageUpload({
     <div className="space-y-2">
       <div
         className={cn(
-          "group relative w-full max-w-56 overflow-hidden rounded-xl border border-dashed bg-ink-900",
+          "group relative mx-auto w-full max-w-56 overflow-hidden rounded-xl border border-dashed bg-ink-900",
           aspect,
           value ? "border-ink-600" : "border-gold-500/30",
         )}
@@ -85,8 +103,9 @@ export function ImageUpload({
           if (f) upload(f);
         }}
       >
+        {/* Eager: the preview is the main visual near the top of the form (Next flags it as the LCP image otherwise). */}
         {value ? (
-          <Image src={value} alt={label} fill unoptimized className="object-cover" />
+          <Image src={value} alt={label} fill unoptimized loading="eager" className="object-cover" />
         ) : (
           <button
             type="button"
@@ -107,7 +126,7 @@ export function ImageUpload({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={() => input.current?.click()}
@@ -126,7 +145,7 @@ export function ImageUpload({
         {value && (
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => change(null)}
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink-600 px-3 text-xs text-stone hover:border-red-500/40 hover:text-red-300"
           >
             <Trash2 className="size-3.5" /> Remove
@@ -139,7 +158,7 @@ export function ImageUpload({
           className={cn(inputClass, "h-9 text-xs")}
           placeholder="https://… or /demo/…"
           defaultValue={value ?? ""}
-          onBlur={(e) => onChange(e.target.value.trim() || null)}
+          onBlur={(e) => change(e.target.value.trim() || null)}
         />
       )}
       {error && (

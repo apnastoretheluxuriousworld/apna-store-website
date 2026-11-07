@@ -14,7 +14,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   boolean: "Yes / No",
 };
 
-export function slugify(input: string) {
+export function slugify(input: string, maxLength = 40) {
   return input
     .toLowerCase()
     .normalize("NFKD")
@@ -22,7 +22,8 @@ export function slugify(input: string) {
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
+    .slice(0, maxLength)
+    .replace(/-+$/, "");
 }
 
 /** "Case Size (mm)" → "case_size_mm" */
@@ -37,7 +38,7 @@ export function keyify(input: string) {
   return /^[a-z]/.test(k) ? k : k ? `f_${k}`.slice(0, 40) : "";
 }
 
-const imageUrl = z
+export const imageUrl = z
   .string()
   .trim()
   .max(500)

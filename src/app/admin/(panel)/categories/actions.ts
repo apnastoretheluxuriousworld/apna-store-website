@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
 import { CATEGORIES_TAG } from "@/lib/data/categories";
 import { categoryInputSchema } from "@/lib/validation/category";
+import { deleteUnreferencedUploads } from "@/lib/storage/cleanup";
 import { pgCode, zodFieldErrors, type ActionResult } from "@/lib/actions";
 
 /** Refresh the storefront's cached categories and the admin's client cache. */
@@ -34,23 +35,30 @@ export async function saveCategory(input: unknown): Promise<ActionResult<{ id: s
     return { ok: false, error: "That URL slug is already used.", fieldErrors: { slug: "Already used by another category" } };
   }
 
+  // Remember the current cover so a replaced/removed one can be deleted from storage after saving.
+  const [before] = id
+    ? await d.select({ imageUrl: s.categories.imageUrl }).from(s.categories).where(eq(s.categories.id, id))
+    : [];
+
   try {
     const categoryId = await d.transaction(async (tx) => {
-      let catId = id;
-      if (catId) {
-        const updated = await tx
-          .update(s.categories)
-          .set({ ...data, description: data.description || null })
-          .where(eq(s.categories.id, catId))
-          .returning({ id: s.categories.id });
-        if (!updated.length) throw new Error("NOT_FOUND");
-      } else {
+      // An id we don't know yet = create with it (idempotent retries from the admin outbox).
+      const updated = id
+        ? await tx
+            .update(s.categories)
+            .set({ ...data, description: data.description || null })
+            .where(eq(s.categories.id, id))
+            .returning({ id: s.categories.id })
+        : [];
+      let catId: string;
+      if (updated.length) catId = updated[0].id;
+      else {
         const [{ max }] = await tx
           .select({ max: sql<number>`coalesce(max(${s.categories.sortOrder}), -1)::int` })
           .from(s.categories);
         const [created] = await tx
           .insert(s.categories)
-          .values({ ...data, description: data.description || null, sortOrder: max + 1 })
+          .values({ ...data, ...(id && { id }), description: data.description || null, sortOrder: max + 1 })
           .returning({ id: s.categories.id });
         catId = created.id;
       }
@@ -93,10 +101,12 @@ export async function saveCategory(input: unknown): Promise<ActionResult<{ id: s
       return catId;
     });
 
+    if (before?.imageUrl && before.imageUrl !== (data.imageUrl || null)) {
+      await deleteUnreferencedUploads([before.imageUrl]);
+    }
     categoriesChanged();
     return { ok: true, data: { id: categoryId } };
   } catch (e) {
-    if (e instanceof Error && e.message === "NOT_FOUND") return { ok: false, error: "This category no longer exists." };
     if (pgCode(e) === "23505") return { ok: false, error: "A field key or slug is already in use." };
     console.error("[saveCategory]", e);
     return { ok: false, error: "Couldn't save the category. Please try again." };
@@ -117,12 +127,18 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   if (n > 0) {
     return { ok: false, error: `This category has ${n} product${n === 1 ? "" : "s"}. Move or delete them first.` };
   }
+  let imageUrl: string | null = null;
   try {
-    await d.delete(s.categories).where(eq(s.categories.id, id));
+    const [deleted] = await d
+      .delete(s.categories)
+      .where(eq(s.categories.id, id))
+      .returning({ imageUrl: s.categories.imageUrl });
+    imageUrl = deleted?.imageUrl ?? null;
   } catch (e) {
     if (pgCode(e) === "23503") return { ok: false, error: "This category still has products." };
     throw e;
   }
+  await deleteUnreferencedUploads([imageUrl]);
   categoriesChanged();
   return { ok: true };
 }

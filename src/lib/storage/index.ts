@@ -28,3 +28,27 @@ export const storage = {
   delete: (key: string) => core.deleteObject(client(), config(), key),
   ping: () => core.pingBucket(client(), config()),
 };
+
+/** Object key for a URL inside our bucket, or null (external URL, demo path, or storage not set up). */
+export function keyFromUrl(url: string): string | null {
+  let base: string;
+  try {
+    base = config().publicUrl + "/";
+  } catch {
+    return null;
+  }
+  if (!url.startsWith(base)) return null;
+  const key = url.slice(base.length);
+  return /^[a-z]+\/\d{4}\/\d{2}\/[0-9a-f-]{36}\.[a-z0-9]+$/.test(key) ? key : null;
+}
+
+/** Best-effort delete of uploaded files that are no longer referenced. Never throws. */
+export async function deleteUploads(urls: string[]) {
+  const keys = [...new Set(urls.map(keyFromUrl).filter((k): k is string => !!k))];
+  await Promise.all(
+    keys.map((k) =>
+      storage.delete(k).catch((e) => console.warn("[storage] delete failed", k, e instanceof Error ? e.message : e)),
+    ),
+  );
+  return keys.length;
+}

@@ -43,7 +43,7 @@ export const uploadKinds = {
   },
 } as const;
 
-export const uploadFolders = ["products", "categories", "hero", "reels", "testimonials"] as const;
+export const uploadFolders = ["products", "categories", "hero", "reels", "testimonials", "reviews"] as const;
 export type UploadFolder = (typeof uploadFolders)[number];
 
 export class UploadRejected extends Error {}
