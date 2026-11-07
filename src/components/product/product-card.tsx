@@ -1,0 +1,78 @@
+import Image from "next/image";
+import Link from "next/link";
+import { Heart, Star } from "lucide-react";
+import { CategoryIcon } from "@/components/brand/category-icon";
+import { Button } from "@/components/ui/button";
+import { formatPrice } from "@/lib/format";
+import type { DemoProduct } from "@/lib/demo";
+
+/** Product tile, styled after the brand reference (dark card, gold accents). */
+export function ProductCard({ product }: { product: DemoProduct }) {
+  return (
+    <article className="group relative flex flex-col overflow-hidden rounded-xl border border-gold-500/10 bg-ink-800/70 transition-colors duration-500 hover:border-gold-500/30">
+      <Link
+        href={`/shop/${product.category}`}
+        className="relative block aspect-4/5 overflow-hidden bg-ink-950"
+        aria-label={product.name}
+      >
+        {product.image ? (
+          <>
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover transition-transform duration-1000 ease-luxe group-hover:scale-105"
+            />
+            <div className="absolute inset-x-0 bottom-0 h-1/4 bg-linear-to-t from-ink-800/80 to-transparent" />
+          </>
+        ) : (
+          <>
+            {/* Placeholder until this category's photos arrive */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_60%,rgba(212,175,55,0.22),transparent_60%)] transition-transform duration-700 ease-luxe group-hover:scale-110" />
+            <div className="absolute inset-x-6 bottom-8 h-6 rounded-[50%] bg-black/60 blur-md" />
+            <div className="absolute inset-0 grid place-items-center">
+              <CategoryIcon
+                slug={product.category}
+                className="size-16 text-gold-400/80 drop-shadow-[0_0_24px_rgba(212,175,55,0.45)] transition-transform duration-700 ease-luxe group-hover:-translate-y-1 group-hover:scale-105"
+                strokeWidth={0.75}
+              />
+            </div>
+          </>
+        )}
+      </Link>
+
+      <button
+        type="button"
+        aria-label={`Add ${product.name} to wishlist`}
+        className="absolute top-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-ink-950/60 text-ivory/70 backdrop-blur transition-colors hover:text-gold-400"
+      >
+        <Heart className="size-4" strokeWidth={1.5} />
+      </button>
+
+      <div className="flex flex-1 flex-col p-3 lg:p-4">
+        <h3 className="truncate text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-gold-400 lg:text-xs">
+          {product.name}
+        </h3>
+        <p className="mt-0.5 truncate text-[0.7rem] text-stone">{product.subtitle}</p>
+        <p className="mt-1.5 text-sm font-medium text-ivory">{formatPrice(product.price)}</p>
+        <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-stone">
+          <div className="flex text-gold-400" aria-label={`Rated ${product.rating} out of 5`}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <Star
+                key={i}
+                className="size-2.5"
+                fill={i < Math.round(product.rating) ? "currentColor" : "none"}
+                strokeWidth={1.5}
+              />
+            ))}
+          </div>
+          <span>{product.rating}</span>
+        </div>
+        <Button variant="outline" size="sm" className="mt-3 w-full">
+          Add to bag
+        </Button>
+      </div>
+    </article>
+  );
+}

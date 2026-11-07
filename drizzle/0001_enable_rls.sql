@@ -1,0 +1,19 @@
+ALTER TABLE "addresses" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "categories" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "category_fields" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "coupons" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "hero_slides" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "homepage_sections" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "order_items" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "order_status_history" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "orders" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "product_images" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "product_variants" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "products" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "reels" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "reviews" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "sessions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "settings" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "testimonials" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "wishlist_items" ENABLE ROW LEVEL SECURITY;

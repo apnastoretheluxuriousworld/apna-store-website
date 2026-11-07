@@ -1,0 +1,8 @@
+# Netlify auto-detects Next.js and uses its official adapter.
+# Set the same variables as .env in: Site configuration → Environment variables.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
