@@ -41,5 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# e2e screenshots
-e2e/.output
+# Tests and local dev checks (not part of the app)
+/e2e/
+/scripts/test-*.mts
+/scripts/_tmp*
