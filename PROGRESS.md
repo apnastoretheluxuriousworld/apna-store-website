@@ -7,34 +7,51 @@ We build one feature at a time: build → self-test → hand to the user to test
 | F1 | Foundation & design shell | ✅ Done (approved 2026-11-07) |
 | F2 | Infra: Supabase (Postgres) + Drizzle + R2 + Netlify | 🟡 Database live (migrated, seeded, RLS on); R2 credentials pending |
 | F3 | Auth (phone + password) & admin shell | ✅ Done |
-| F4 | Admin: categories + dynamic field builder | ✅ Built, waiting for user testing |
-| F5 | Admin: products (dynamic + per-product custom fields, images, variants) | — |
+| F4 | Admin: categories + dynamic field builder | ✅ Done (approved 2026-11-08) |
+| F5 | Admin: products (dynamic + per-product custom fields, images, variants) | 🟡 Built; blocked by the render-freeze bug below |
 | F6 | Storefront: catalog, filters, product page, search | — |
 | F7 | Homepage CMS: hero / reels / featured / testimonials (CRUD + drag) | — |
 | F8 | Customer accounts + wishlist | — |
 | F9 | Cart, coupons, checkout, Razorpay + COD rule | — |
 | F10 | Admin: orders, status, settings, coupons, reviews, dashboard | — |
-| F11 | Reviews + WhatsApp button | — |
+| F11 | Reviews + WhatsApp button | 🟡 Reviews moderation + testimonials admin built (2026-11-08); customer "write a review" waits for F8, WhatsApp button todo |
 | F12 | PWA, SEO, policy pages, performance, launch | — |
 
-## ▶ Resume here (handoff, 2026-11-07)
-**Workflow (from the user):** build one feature at a time, then test it yourself and report with test steps. Wait for the user to test before starting the next feature. Discuss decisions in chat, not with popups.
+## ▶ Resume here (handoff, 2026-11-08)
+**Workflow (from the user):** build one feature at a time, then test it yourself and report with test steps. Wait for the user to test before starting the next feature. Discuss decisions in chat, not with popups. **Post a short progress update every few steps, and stop to ask when a bug takes more than ~20 minutes.**
 
 **State**
-- F1–F4 are built. F4 is waiting for the user to test it.
-- **R2 is not configured yet:** the `S3_*` values in `.env` are still placeholders.
-- Supabase is live: 8 categories, 49 fields, admin `apnastore`.
+- F1–F4 are done. F5 is built: offline tests pass, and the browser test passed 20/21 checks against the real DB before the freeze bug got in the way.
+- R2 is still not configured (`S3_*` values in `.env` are placeholders), so product images can only be added by URL.
 
-**Next:** F5, admin products (see the plan in `~/.claude/plans/go-with-cormorant-lively-teapot.md`). Image uploads need R2; `ImageUpload` and `getUploadUrl` are already built.
+**🔴 Open issue: pages that query the DB sometimes freeze (fix this first)**
+- Symptom: a DB-backed page (`/admin`, `/admin/products`, a server action) streams its shell, then never finishes. Pages without DB work load fine.
+- It happened mostly right after `next start`, but by the end it also happened on a warm server. It never happens in plain Node outside Next (30/30 parallel query rounds fine).
+- Already fixed along the way: postgres.js opened sockets inside page renders, and Next 16 (Cache Components) interrupts sync I/O there (`crypto.randomBytes` for the SCRAM nonce, `Date`). Connections died mid-handshake. Sockets are now opened in a boot-time async scope (`src/lib/db/socket.ts` + `src/instrumentation.ts`), and DB traffic now uses TLS (`DB_SSL`, default prefer). After this change the DB exchanges complete, but the page stream still stalls (unresolved Suspense boundary `P:` for the page content).
+- Next suspects: Next's patched `setImmediate` / `process.nextTick` (`node_modules/next/dist/server/node-environment-extensions/fast-set-immediate.external.js`) interacting with DB results that resolve outside the render, or the PPR runtime prerender of admin pages. Try running DB work through `connection()` first, or giving admin pages `ensureStatic = false` / no PPR.
+- Repro: fresh `next start -p 3123`, log in, `fetch` `/admin/products` with the cookie and read the stream (it stops ~6 KB short).
+- `e2e/warmup.mjs` runs first in `npm run e2e` as a stopgap.
+- Don't patch `node_modules` to debug (auth code edits got blocked, and they're risky). Instrument our own wrapper in `socket.ts` instead.
 
 **How to verify (every feature)**
-1. `npm run lint`, `npx tsc --noEmit`, `npm test` (offline: in-memory Postgres, storage rules, auth) and `npm run build`.
+1. `npm run lint`, `npx tsc --noEmit`, `npm test` (now also `test:product`) and `npm run build`.
 2. Start a production server against the real DB: `npx next start -p 3123`. **Never** touch the user's own dev server on :3000.
-3. Run the browser tests: `npm run e2e`. They use the real Supabase DB and clean up after themselves. Credentials come from `E2E_USER` / `E2E_PASS` in `.env`.
-4. Look at the screenshots in `e2e/.output/` for wrong data, not just pass/fail.
+3. `npm run e2e` (warmup → auth → categories → products → store menu). The tests clean up leftovers from earlier crashed runs.
+4. Look at the screenshots in `e2e/.output/`.
 5. If dependencies changed, tell the user to restart `npm run dev`.
 
-**Fixed 2026-11-07: "flaky" store menu.** This was a real bug, not a flaky test. After any admin category save (`updateTag("categories")`), a client navigation to a pre-built `/shop/<category>` got a partial App Shell stream. React threw #412 (Flight "Connection closed") and the page showed "This page couldn't load". It only failed in `npm run e2e` because `categories.mjs` runs first and does the invalidating. The fix was removing `generateStaticParams` from `/shop/[category]`. `store-menu.mjs` now asserts the heading renders and exits non-zero on failure.
+## F5: what's in it
+- `/admin/products`: search (name/SKU), category and status filters, pagination (30 per page), thumbnail, price/compare-at, stock warnings, Featured star and Live switch.
+- New and edit product pages:
+  - name with auto slug, and a multi-line description
+  - gallery: multi-upload, drag to reorder (first = cover), add by URL, max 12
+  - the category's own fields, rendered by type and validated (required, number, dropdown option)
+  - extra per-product details (name/value)
+  - variants (label, SKU, optional price, stock); with variants, product stock = their sum
+  - Draft/Live (Live needs an image), Featured
+  - delete, which also removes now-unused uploaded files from R2
+- Shared rules in `src/lib/validation/product.ts`, with `normalizeAttributes` used by both form and server. Actions in `src/app/admin/(panel)/products/actions.ts`, all calling `requireAdmin()`. Image keys are derived from URLs on the server, never trusted from the client.
+- Planned storefront URL: `/product/<slug>` (F6).
 
 ## F1: what's in it
 - Next.js 16.4 (App Router, Cache Components) with TypeScript, Tailwind v4, Motion and Lenis.
@@ -50,7 +67,7 @@ We build one feature at a time: build → self-test → hand to the user to test
   - Small footer.
 - Homepage in the section order the client wants, filled with **demo data** (`src/lib/demo.ts`):
   - hero
-  - film room (reels)
+  - Our Feed (vertical 9:16 videos — formerly "film room"; now managed in Admin → Feed)
   - collections
   - best sellers
   - testimonials
@@ -117,4 +134,22 @@ We build one feature at a time: build → self-test → hand to the user to test
 - **postgres.js is pinned to v3.4.7.** Version 4.1 hung pages: queries were left half-sent through Supabase's transaction pooler.
 - With Partial Prefetching, anything that depends on the current time or a DB query must come after `connection()`. `getCurrentUser()` does this.
 - `/shop/<unknown>` shows the 404 page but returns HTTP 200, because the page is streamed with Partial Prerendering. This goes away in F6, when categories come from the database.
-- **Demo images:** `public/demo/<category>/` holds 29 DUMMY photos from the user's Downloads, covering all 8 categories. They are cropped to 4:5 WebP and mapped in `src/lib/demo.ts`. Some show third-party brand logos, so they **must be replaced with the client's own photos before launch** (F12 checklist).
+- **Demo images:** `public/demo/<category>/` holds 29 DUMMY photos from the user's Downloads, covering all 8 categories. They are cropped to 4:5 WebP and used by the catalog import (`src/lib/demo.ts` was removed once the feed went live). Some show third-party brand logos, so they **must be replaced with the client's own photos before launch** (F12 checklist).
+
+## Testimonials + reviews moderation (built 2026-11-08)
+- **Homepage testimonials are managed in Admin → Testimonials** (`/admin/testimonials`, in the nav after Homepage). You can add, edit and delete them, drag to reorder (the homepage follows), and show or hide each one. A testimonial has a name, city, star rating, quote and optionally **one photo or video** (videos get an auto-captured poster frame; add by URL works too). It uses the existing `testimonials` table, so no migration was needed. The 3 old demo quotes were copied into the DB, and `demoTestimonials` was removed from `demo.ts`.
+- Homepage section: `src/components/home/testimonials.tsx` (cached, tag `testimonials`; admin actions call `updateTag`). The section is hidden when there are none. Tapping a photo or video opens it full screen. Desktop uses masonry columns; mobile uses a swipe carousel.
+- **Product reviews are written by customers on the storefront** (that comes with customer accounts, F8). The admin only moderates at `/admin/reviews`: Pending / Published / All tabs, search, rating and media filters, Publish switch, Pin, Delete, media viewer. There is no admin "Add review".
+- Schema (migration 0003, applied): `reviews.user_id` is nullable, plus `author_name`, `city`, `media` jsonb `[{type, url, poster}]`, `is_pinned`, `is_verified`, `updated_at`.
+- Storefront reviews block: `<ProductReviews productId=… />` (`src/components/reviews/product-reviews.tsx`) shows a rating summary and breakdown, client photos/videos, and the reviews (pinned first). **Render it on `/product/[slug]` when that page is built.** Card ratings count only published reviews (tag `reviews`).
+- Shared pieces: `src/components/admin/media-upload.tsx` (photo/video picker), `src/components/reviews/media-viewer.tsx` (thumbnails + full-screen viewer), `src/components/admin/star-picker.tsx`. Upload folder `reviews/`; `cleanup.ts` also checks review media.
+- Still to do: the customer "write a review" form (F8: photos/videos, saved as Pending, `is_verified` from orders) and the WhatsApp button.
+- e2e: `e2e/testimonials.mjs` (15 checks), `e2e/reviews.mjs` (20 checks). The reviews storefront-block checks need a throwaway `/e2e-reviews/[id]` route rendering `<ProductReviews>`; both need `public/e2e/clip.mp4` in the clone (the checks skip without them).
+
+## Our Feed — vertical videos (built 2026-11-08)
+- **"The Film Room" is now "Our Feed"**: vertical **9:16 videos only**, like YouTube Shorts. Managed in **Admin → Feed** (`/admin/feed`, in the nav after Homepage). It uses the existing `reels` table (`title` holds the optional caption). Migration 0004 (applied) renames the homepage section title; the seed says "Our Feed" too. `demoReels` and `src/lib/demo.ts` are gone.
+- Admin: a grid of 9:16 tiles. **Add videos** takes several files at once (or drag them onto the grid); each one uploads straight to R2 (`reels/` folder) with an auto-captured poster frame and becomes a post right away. Drag to reorder, switch to show/hide, and tap a tile to edit the caption, replace the video or delete it. Saves and deletes go through the outbox, so they feel instant.
+- Upload rules: MP4, WebM or MOV up to 200 MB. **Landscape or square videos are rejected**, and a vertical video that isn't exactly 9:16 gets a "will be cropped slightly" warning. If the browser can't read the video's size (some HEVC .mov files on desktop Chrome), it's accepted without the check.
+- Storefront: `src/components/home/feed.tsx` (cached, tag `feed`; hidden when there are no videos) → horizontal strip of 9:16 cards. Tapping a card (or "Watch all") opens `feed-viewer.tsx`, a full-screen vertical swipe player: one video per screen, it plays and loops while visible, sound on (falls back to muted if the browser blocks it), mute button, tap to pause, progress bar, ↑/↓ keys and buttons on desktop. **The phone's back button closes the player.** Only the visible video and its neighbours load.
+- Not done: `reels.product_id` ("shop this look") is unused until product pages (`/product/[slug]`) exist.
+- e2e: `e2e/feed.mjs` (27 checks: upload, landscape rejection, caption, player on desktop and mobile, back button, hide, delete incl. storage cleanup). It needs `E2E_VERTICAL` and `E2E_LANDSCAPE` set to **WebM** clips (Playwright's Chromium can't decode H.264) and launches Chromium with `--disable-web-security`, because the R2 CORS policy doesn't list :3123.
