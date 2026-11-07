@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { ComingSoon, PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminView } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Coupons" };
 
 export default async function Page() {
-  await requireAdmin();
+  await requireAdminView();
   return (
     <>
-      <PageHeader title="Coupons" description="Discount codes." />
+      <PageHeader title="Coupons" />
       <ComingSoon feature="F10" what="Create percent or flat discount codes" />
     </>
   );

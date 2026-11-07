@@ -1,10 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { Loader2 } from "lucide-react";
+import { Button, buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const inputClass =
   "h-11 w-full rounded-lg border border-ink-600 bg-ink-900 px-3.5 text-sm text-ivory placeholder:text-mute transition-colors focus:border-gold-500/60 focus:ring-2 focus:ring-gold-500/15 focus:outline-none disabled:opacity-60 aria-invalid:border-red-500/60";
+
+/** Dropdowns: same look as inputs, with an arrow that doesn't touch the border. */
+export const selectClass = cn(inputClass, "select-chevron pr-6");
 
 export function Field({
   label,
@@ -132,5 +138,28 @@ export function ConfirmDialog({
         </button>
       </div>
     </dialog>
+  );
+}
+
+/**
+ * Cancel + Save for admin forms. On mobile it's a full-width bar pinned on top of
+ * the bottom nav (forms add pb-20 so nothing hides behind it); on desktop it sits
+ * at the end of the form, right-aligned.
+ */
+export function FormActions({ cancelHref, saving, label }: { cancelHref: string; saving: boolean; label: string }) {
+  return (
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-ink-600/60 bg-ink-950/95 px-3 py-2.5 backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+      <div className="mx-auto grid max-w-md grid-cols-[1fr_2fr] gap-2 lg:mx-0 lg:flex lg:max-w-none lg:justify-end">
+        <Link
+          href={cancelHref}
+          className={buttonClass("outline", "md", "border-ink-600 px-4 text-stone hover:border-ink-600 hover:bg-ink-800 hover:text-ivory lg:min-w-28")}
+        >
+          Cancel
+        </Link>
+        <Button type="submit" disabled={saving} className="px-4 lg:min-w-40">
+          {saving ? <Loader2 className="size-4 animate-spin" /> : label}
+        </Button>
+      </div>
+    </div>
   );
 }

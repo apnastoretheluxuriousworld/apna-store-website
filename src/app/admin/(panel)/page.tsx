@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { count, eq, sql } from "drizzle-orm";
+import { cacheLife } from "next/cache";
 import { ArrowUpRight, CheckCircle2, CircleDashed, FolderTree, Package, ReceiptText, Users } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminView } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { formatPrice } from "@/lib/format";
 
+/** Private-cached: kept with the page in the admin's browser (see the `admin` profile). */
 async function getStats() {
+  "use cache: private";
+  cacheLife("admin");
   const d = db();
   const [[cats], [prods], [ords], [custs]] = await Promise.all([
     d.select({ n: count() }).from(s.categories),
@@ -30,6 +34,8 @@ async function getStats() {
 }
 
 async function storageReady() {
+  "use cache: private";
+  cacheLife("admin");
   try {
     await storage.ping();
     return true;
@@ -39,7 +45,7 @@ async function storageReady() {
 }
 
 export default async function AdminDashboard() {
-  const user = await requireAdmin();
+  const user = await requireAdminView();
   const [{ cats, prods, ords, custs }, storageOk] = await Promise.all([getStats(), storageReady()]);
 
   const stats = [
@@ -53,14 +59,14 @@ export default async function AdminDashboard() {
     { done: true, label: "Database connected", note: "Supabase Postgres" },
     { done: cats.n > 0, label: "Categories set up", note: `${cats.n} categories` },
     { done: storageOk, label: "Media storage connected", note: storageOk ? "Cloudflare R2" : "Add R2 keys to .env (SETUP.md §2)" },
-    { done: prods.active > 0, label: "First product live", note: "Products arrive in F5" },
+    { done: prods.active > 0, label: "First product live", note: prods.active > 0 ? `${prods.active} live` : "Add a product and switch it to Live" },
   ];
 
   const first = user.name.split(" ")[0];
 
   return (
     <>
-      <PageHeader title={`Welcome, ${first}`} description="Here's what's happening at Apna Store." />
+      <PageHeader title={`Welcome, ${first}`} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {stats.map(({ label, value, sub, icon: Icon, href }) => (
@@ -77,7 +83,7 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-3">
+      <div className="mt-3 grid gap-3 lg:mt-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-ivory">Revenue</h2>
