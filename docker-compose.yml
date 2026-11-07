@@ -3,6 +3,7 @@
 # Then in .env:
 #   DATABASE_URL="postgresql://apna:apna@localhost:5432/apnastore"
 #   DATABASE_URL_DIRECT="postgresql://apna:apna@localhost:5432/apnastore"
+#   DB_SSL="disable"   # local Postgres has no TLS
 services:
   postgres:
     image: postgres:17-alpine

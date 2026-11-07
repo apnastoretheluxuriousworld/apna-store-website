@@ -1,11 +1,12 @@
 /** npm run db:seed — idempotent; safe to re-run. */
 import { need } from "./_env.mts";
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgSslFromEnv } from "../src/lib/db/ssl";
 import * as schema from "../src/lib/db/schema";
 import { seed } from "../src/lib/db/seed";
 
-const client = postgres(need("DATABASE_URL_DIRECT"), { prepare: false, max: 1 });
+const client = new Pool({ connectionString: need("DATABASE_URL_DIRECT"), ssl: pgSslFromEnv(), max: 1 });
 const db = drizzle(client, { schema, casing: "snake_case" });
 
 try {

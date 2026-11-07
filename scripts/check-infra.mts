@@ -4,18 +4,21 @@
  *   Storage:  bucket reachable, upload, public URL serves it, delete
  */
 import { fail, need, ok } from "./_env.mts";
-import postgres from "postgres";
+import pg from "pg";
+import { pgSslFromEnv } from "../src/lib/db/ssl";
 import * as storage from "../src/lib/storage/core";
 
 console.log("\nDatabase");
-const sql = postgres(need("DATABASE_URL"), { prepare: false, max: 1, connect_timeout: 10 });
+const sql = new pg.Client({ connectionString: need("DATABASE_URL"), ssl: pgSslFromEnv(), connectionTimeoutMillis: 10_000 });
+const one = async (q: string) => (await sql.query(q)).rows[0];
 try {
-  const [{ version }] = await sql`select version()`;
+  await sql.connect();
+  const { version } = await one("select version()");
   ok(`connected — ${String(version).split(",")[0]}`);
-  const [{ exists }] = await sql`select to_regclass('public.categories') is not null as exists`;
+  const { exists } = await one("select to_regclass('public.categories') is not null as exists");
   if (!exists) fail("tables missing — run `npm run db:migrate`");
   ok("schema migrated");
-  const [{ count }] = await sql`select count(*)::int as count from categories`;
+  const { count } = await one("select count(*)::int as count from categories");
   if (count === 0) console.log("  ! no categories yet — run `npm run db:seed`");
   else ok(`${count} categories`);
 } catch (e) {

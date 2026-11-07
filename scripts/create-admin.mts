@@ -7,8 +7,9 @@
  */
 import { parseArgs } from "node:util";
 import { need, fail } from "./_env.mts";
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgSslFromEnv } from "../src/lib/db/ssl";
 import { eq } from "drizzle-orm";
 import * as s from "../src/lib/db/schema";
 import { hashPassword, PASSWORD_MIN_LENGTH } from "../src/lib/auth/password";
@@ -26,7 +27,7 @@ const password = values.password ?? "";
 if (!username || !/^[a-z0-9._-]{3,32}$/.test(username)) fail("--username is required (3–32 letters, numbers, . _ -)");
 if (password.length < PASSWORD_MIN_LENGTH) fail(`--password must be at least ${PASSWORD_MIN_LENGTH} characters`);
 
-const client = postgres(need("DATABASE_URL_DIRECT"), { prepare: false, max: 1 });
+const client = new Pool({ connectionString: need("DATABASE_URL_DIRECT"), ssl: pgSslFromEnv(), max: 1 });
 const db = drizzle(client, { schema: s, casing: "snake_case" });
 
 try {

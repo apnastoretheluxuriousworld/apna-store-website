@@ -10,6 +10,9 @@ import { z } from "zod";
 const dbSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   DB_POOL_MAX: z.coerce.number().int().positive().default(5),
+  // TLS to the database (see lib/db/ssl.ts): "require" for Supabase,
+  // "disable" for a Postgres on the same machine (VPS / docker).
+  DB_SSL: z.enum(["require", "disable"]).default("require"),
 });
 
 // Reject the placeholder values shipped in .env.example.

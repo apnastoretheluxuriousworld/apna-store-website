@@ -184,6 +184,8 @@ export const products = pgTable(
     price: integer().notNull(),
     compareAtPrice: integer(),
     stock: integer().notNull().default(0),
+    /** false = made to order / always available: stock isn't counted and it never sells out. */
+    trackStock: boolean().notNull().default(true),
     sku: text(),
     status: productStatus().notNull().default("draft"),
     isFeatured: boolean().notNull().default(false),
@@ -311,6 +313,9 @@ export const coupons = pgTable("coupons", {
 
 /* ───────────── Engagement ───────────── */
 
+/** A photo or video attached to a review. `poster` = still frame shown before a video plays. */
+export type ReviewMedia = { type: "image" | "video"; url: string; poster?: string | null };
+
 export const reviews = pgTable(
   "reviews",
   {
@@ -318,16 +323,26 @@ export const reviews = pgTable(
     productId: uuid()
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
-    userId: uuid()
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    // Null for reviews the admin enters by hand (e.g. from WhatsApp/Instagram).
+    // A deleted account keeps its review under `authorName`.
+    userId: uuid().references(() => users.id, { onDelete: "set null" }),
+    authorName: text().notNull(),
+    city: text(),
     rating: smallint().notNull(),
     body: text(),
+    media: jsonb().$type<ReviewMedia[]>().notNull().default([]),
     isApproved: boolean().notNull().default(false),
+    /** Shown first on the product page. */
+    isPinned: boolean().notNull().default(false),
+    /** "Verified buyer" badge. */
+    isVerified: boolean().notNull().default(false),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex().on(t.productId, t.userId),
+    index().on(t.productId, t.isApproved),
+    index().on(t.isApproved, t.createdAt),
     check("rating_range", sql`${t.rating} between 1 and 5`),
   ],
 ).enableRLS();

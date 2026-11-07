@@ -83,7 +83,8 @@ docker compose up -d
 pg_dump  "$SUPABASE_DATABASE_URL_DIRECT" --no-owner --no-acl -Fc -f apnastore.dump
 pg_restore --no-owner -d "postgresql://apna:PASSWORD@localhost:5432/apnastore" apnastore.dump
 
-# 3. Point .env at the VPS database (both URLs can be the same)
+# 3. Point .env at the VPS database (both URLs can be the same) and set DB_SSL="disable"
+#    (Postgres on the same machine has no TLS; Supabase needs the default "require")
 # 4. Build and run the app:  npm ci && npm run build && npm start   (behind Nginx + PM2)
 ```
 
