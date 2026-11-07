@@ -4,14 +4,14 @@ import { Heart, Star } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
-import type { DemoProduct } from "@/lib/demo";
+import type { StoreProduct } from "@/lib/data/products";
 
 /** Product tile, styled after the brand reference (dark card, gold accents). */
-export function ProductCard({ product }: { product: DemoProduct }) {
+export function ProductCard({ product }: { product: StoreProduct }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl border border-gold-500/10 bg-ink-800/70 transition-colors duration-500 hover:border-gold-500/30">
       <Link
-        href={`/shop/${product.category}`}
+        href={`/shop/${product.categorySlug}`}
         className="relative block aspect-4/5 overflow-hidden bg-ink-950"
         aria-label={product.name}
       >
@@ -33,7 +33,7 @@ export function ProductCard({ product }: { product: DemoProduct }) {
             <div className="absolute inset-x-6 bottom-8 h-6 rounded-[50%] bg-black/60 blur-md" />
             <div className="absolute inset-0 grid place-items-center">
               <CategoryIcon
-                slug={product.category}
+                slug={product.categorySlug}
                 className="size-16 text-gold-400/80 drop-shadow-[0_0_24px_rgba(212,175,55,0.45)] transition-transform duration-700 ease-luxe group-hover:-translate-y-1 group-hover:scale-105"
                 strokeWidth={0.75}
               />
@@ -54,24 +54,35 @@ export function ProductCard({ product }: { product: DemoProduct }) {
         <h3 className="truncate text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-gold-400 lg:text-xs">
           {product.name}
         </h3>
-        <p className="mt-0.5 truncate text-[0.7rem] text-stone">{product.subtitle}</p>
-        <p className="mt-1.5 text-sm font-medium text-ivory">{formatPrice(product.price)}</p>
-        <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-stone">
-          <div className="flex text-gold-400" aria-label={`Rated ${product.rating} out of 5`}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <Star
-                key={i}
-                className="size-2.5"
-                fill={i < Math.round(product.rating) ? "currentColor" : "none"}
-                strokeWidth={1.5}
-              />
-            ))}
+        {product.subtitle && <p className="mt-0.5 truncate text-[0.7rem] text-stone">{product.subtitle}</p>}
+        <p className="mt-1.5 flex items-baseline gap-2 text-sm font-medium text-ivory">
+          {formatPrice(product.price)}
+          {product.compareAtPrice != null && product.compareAtPrice > product.price && (
+            <s className="text-[0.7rem] font-normal text-mute">{formatPrice(product.compareAtPrice)}</s>
+          )}
+        </p>
+        {product.rating != null && (
+          <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-stone">
+            <div className="flex text-gold-400" aria-label={`Rated ${product.rating} out of 5`}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Star
+                  key={i}
+                  className="size-2.5"
+                  fill={i < Math.round(product.rating ?? 0) ? "currentColor" : "none"}
+                  strokeWidth={1.5}
+                />
+              ))}
+            </div>
+            <span>
+              {product.rating} ({product.reviewCount})
+            </span>
           </div>
-          <span>{product.rating}</span>
+        )}
+        <div className="mt-auto pt-3">
+          <Button variant="outline" size="sm" className="w-full" disabled={!product.inStock}>
+            {product.inStock ? "Add to bag" : "Sold out"}
+          </Button>
         </div>
-        <Button variant="outline" size="sm" className="mt-3 w-full">
-          Add to bag
-        </Button>
       </div>
     </article>
   );

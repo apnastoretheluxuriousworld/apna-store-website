@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
 import { ProductCard } from "@/components/product/product-card";
 import { getStoreCategories } from "@/lib/data/categories";
-import { demoProductsIn } from "@/lib/demo";
+import { getCategoryProducts } from "@/lib/data/products";
 
 export async function generateMetadata({ params }: PageProps<"/shop/[category]">): Promise<Metadata> {
   const { category } = await params;
@@ -30,12 +30,11 @@ export default function CategoryPage({ params }: PageProps<"/shop/[category]">) 
   );
 }
 
-// DEMO products: F6 replaces them with database products, filters and sorting.
 async function CategoryContent({ params }: { params: PageProps<"/shop/[category]">["params"] }) {
   const { category } = await params;
   const cat = (await getStoreCategories()).find((c) => c.slug === category);
   if (!cat) notFound();
-  const products = demoProductsIn(cat.slug);
+  const products = await getCategoryProducts(cat.slug);
 
   return (
     <>

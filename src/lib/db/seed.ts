@@ -1,6 +1,7 @@
 /**
  * Idempotent seed: categories (+ their product fields), homepage section order
- * and default settings. Safe to run repeatedly — existing rows are never
+ * and default settings. No images or products — covers are uploaded in admin
+ * (or by `npm run db:import-catalog` for the starter catalog). Safe to run repeatedly — existing rows are never
  * overwritten, so admin edits survive a re-seed.
  *
  * Takes a Drizzle instance so it runs from the CLI script and from tests.
@@ -33,14 +34,12 @@ export const seedCategories: {
   name: string;
   slug: string;
   description: string;
-  imageUrl: string;
   fields: Field[];
 }[] = [
   {
     name: "Watches",
     slug: "watches",
     description: "Timepieces of distinction",
-    imageUrl: "/demo/watches/aurum-chronograph.webp",
     fields: [
       brand,
       { label: "Movement", key: "movement", type: "select", options: ["Automatic", "Quartz", "Manual", "Chronograph"], filterable: true },
@@ -56,7 +55,6 @@ export const seedCategories: {
     name: "Handbags",
     slug: "handbags",
     description: "Icons for her",
-    imageUrl: "/demo/handbags/bordeaux-flap-bag.webp",
     fields: [
       brand,
       { label: "Style", key: "style", type: "select", options: ["Tote", "Shoulder Bag", "Crossbody", "Top Handle", "Clutch", "Backpack"], filterable: true },
@@ -70,7 +68,6 @@ export const seedCategories: {
     name: "Shoes",
     slug: "shoes",
     description: "Crafted for every step",
-    imageUrl: "/demo/shoes/monk-strap-patent.webp",
     fields: [
       brand,
       { label: "Style", key: "style", type: "select", options: ["Oxford", "Loafer", "Monk Strap", "Derby", "Sneaker", "Boot", "Heels"], filterable: true },
@@ -84,7 +81,6 @@ export const seedCategories: {
     name: "Sunglasses",
     slug: "sunglasses",
     description: "Statement eyewear",
-    imageUrl: "/demo/sunglasses/regal-shield.webp",
     fields: [
       brand,
       { label: "Frame Shape", key: "frame_shape", type: "select", options: ["Aviator", "Square", "Round", "Shield", "Cat-eye", "Rectangle"], filterable: true },
@@ -97,7 +93,6 @@ export const seedCategories: {
     name: "Wallets",
     slug: "wallets",
     description: "Refined essentials",
-    imageUrl: "/demo/wallets/heritage-bifold-tan.webp",
     fields: [
       brand,
       { label: "Style", key: "style", type: "select", options: ["Bifold", "Card Holder", "Long Wallet", "Zip Around"], filterable: true },
@@ -111,7 +106,6 @@ export const seedCategories: {
     name: "Belts",
     slug: "belts",
     description: "The finishing detail",
-    imageUrl: "/demo/belts/stallion-buckle-belt.webp",
     fields: [
       brand,
       { label: "Material", key: "material" },
@@ -124,7 +118,6 @@ export const seedCategories: {
     name: "Caps",
     slug: "caps",
     description: "Crowned in style",
-    imageUrl: "/demo/caps/crystal-crest-cap.webp",
     fields: [
       brand,
       { label: "Style", key: "style", type: "select", options: ["Baseball", "Bucket", "Snapback", "Trucker"], filterable: true },
@@ -137,7 +130,6 @@ export const seedCategories: {
     name: "Perfumes",
     slug: "perfumes",
     description: "Signature scents",
-    imageUrl: "/demo/perfumes/velora-eau-de-parfum.webp",
     fields: [
       brand,
       { label: "Concentration", key: "concentration", type: "select", options: ["Eau de Parfum", "Eau de Toilette", "Extrait de Parfum", "Attar", "Cologne"], filterable: true },
@@ -153,7 +145,7 @@ export const seedCategories: {
 
 export const seedHomepageSections: { type: (typeof s.homepageSectionType.enumValues)[number]; title: string }[] = [
   { type: "hero", title: "Hero" },
-  { type: "reels", title: "The Film Room" },
+  { type: "reels", title: "Our Feed" },
   { type: "categories", title: "Explore Collections" },
   { type: "featured", title: "Best Sellers" },
   { type: "testimonials", title: "Loved by connoisseurs" },
@@ -174,7 +166,7 @@ export async function seed<T extends PgQueryResultHKT>(db: PgDatabase<T, typeof 
   for (const [i, c] of seedCategories.entries()) {
     const inserted = await db
       .insert(s.categories)
-      .values({ name: c.name, slug: c.slug, description: c.description, imageUrl: c.imageUrl, sortOrder: i })
+      .values({ name: c.name, slug: c.slug, description: c.description, sortOrder: i })
       .onConflictDoNothing({ target: s.categories.slug })
       .returning({ id: s.categories.id });
     report.categories += inserted.length;

@@ -5,13 +5,12 @@ import { ArrowUpRight } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
 import { getStoreCategories } from "@/lib/data/categories";
-import { demoCover, demoProductsIn } from "@/lib/demo";
+import { getProductCounts } from "@/lib/data/products";
 
 export const metadata: Metadata = { title: "The Boutique" };
 
-// DEMO: collections overview. F6 replaces this with database categories.
 export default async function ShopPage() {
-  const categories = await getStoreCategories();
+  const [categories, counts] = await Promise.all([getStoreCategories(), getProductCounts()]);
   return (
     <div className="mx-auto max-w-site px-4 pt-24 pb-16 lg:px-12 lg:pt-36">
       <Reveal className="mb-8 text-center lg:mb-12">
@@ -23,8 +22,8 @@ export default async function ShopPage() {
 
       <RevealGroup className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6">
         {categories.map((c) => {
-          const cover = c.imageUrl || demoCover(c.slug);
-          const count = demoProductsIn(c.slug).length;
+          const cover = c.imageUrl;
+          const count = counts[c.slug] ?? 0;
           return (
             <RevealItem key={c.slug}>
               <Link
@@ -49,7 +48,7 @@ export default async function ShopPage() {
                     <div>
                       <h2 className="font-serif text-2xl text-ivory lg:text-3xl">{c.name}</h2>
                       <p className="text-[0.65rem] uppercase tracking-[0.2em] text-gold-400">
-                        {count} pieces
+                        {count} {count === 1 ? "piece" : "pieces"}
                       </p>
                     </div>
                     <ArrowUpRight
