@@ -25,6 +25,20 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["10.*.*.*", "192.168.*.*", "172.*.*.*", "*.local"],
   cacheComponents: true,
   partialPrefetching: true,
+  cacheLife: {
+    /*
+     * Admin pages are cached in the browser only ('use cache: private'), so
+     * moving between admin pages is instant instead of re-querying the DB.
+     * - stale: how long the browser reuses a visited/prefetched admin page.
+     *   5 min is also the threshold for joining the per-session App Shell, so
+     *   sidebar links are prefetched with real data before the click.
+     * - Every admin Server Action calls revalidatePath("/admin", "layout"),
+     *   which wipes this browser cache at once — your own edits always show.
+     * - Changes made elsewhere (customers' orders, another device) appear
+     *   after `stale` runs out or on a full reload.
+     */
+    admin: { stale: 300, revalidate: 300, expire: 3600 },
+  },
   turbopack: {
     rules: {
       "*.css": {

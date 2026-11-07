@@ -53,9 +53,18 @@ export async function getStoreCategories(): Promise<NavCategory[]> {
   }));
 }
 
-/* ───────────── Admin (uncached, always fresh) ───────────── */
+/*
+ * ───────────── Admin ─────────────
+ * Private-cached ('use cache: private' + the `admin` cacheLife profile): never
+ * stored on the server, only kept with the rendered page in the admin's
+ * browser so page-to-page navigation is instant. Admin Server Actions call
+ * revalidatePath("/admin", "layout"), which clears that browser cache.
+ * Only call these after requireAdminView() — they don't check the session.
+ */
 
 export async function listCategoriesForAdmin() {
+  "use cache: private";
+  cacheLife("admin");
   return db()
     .select({
       id: s.categories.id,
@@ -77,6 +86,8 @@ export async function listCategoriesForAdmin() {
 export type AdminCategoryRow = Awaited<ReturnType<typeof listCategoriesForAdmin>>[number];
 
 export async function getCategoryWithFields(id: string) {
+  "use cache: private";
+  cacheLife("admin");
   const d = db();
   const [category] = await d.select().from(s.categories).where(eq(s.categories.id, id));
   if (!category) return null;
