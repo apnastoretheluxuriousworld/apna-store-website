@@ -87,8 +87,5 @@ export const DUMMY_HASH =
 /** Customers sign in with a 4-digit PIN (validation/customer.ts). */
 export const PASSWORD_MIN_LENGTH = 4;
 
-/**
- * Admin passwords: the admin account can see every customer's name, phone and
- * address, so it gets a real password. Enforced when one is set (create-admin).
- */
-export const ADMIN_PASSWORD_MIN_LENGTH = 12;
+/** Admin password rules live in validation/admin-password.ts (shared with the browser). */
+export { ADMIN_PASSWORD_MIN_LENGTH } from "@/lib/validation/admin-password";

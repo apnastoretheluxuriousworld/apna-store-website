@@ -15,7 +15,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { pgSslFromEnv } from "../src/lib/db/ssl";
 import { eq } from "drizzle-orm";
 import * as s from "../src/lib/db/schema";
-import { ADMIN_PASSWORD_MIN_LENGTH, hashPassword } from "../src/lib/auth/password";
+import { hashPassword } from "../src/lib/auth/password";
+import { adminPasswordProblem } from "../src/lib/validation/admin-password";
 
 const { values } = parseArgs({
   options: {
@@ -28,8 +29,8 @@ const { values } = parseArgs({
 const username = values.username?.trim().toLowerCase();
 const password = values.password ?? "";
 if (!username || !/^[a-z0-9._-]{3,32}$/.test(username)) fail("--username is required (3–32 letters, numbers, . _ -)");
-if (password.length < ADMIN_PASSWORD_MIN_LENGTH) fail(`--password must be at least ${ADMIN_PASSWORD_MIN_LENGTH} characters`);
-if (/^\d+$/.test(password) || new Set(password).size < 6) fail("--password is too easy to guess: use a long random password");
+const problem = adminPasswordProblem(password);
+if (problem) fail(`--password: ${problem}`);
 
 const client = new Pool({ connectionString: need("DATABASE_URL_DIRECT"), ssl: pgSslFromEnv(), max: 1 });
 const db = drizzle(client, { schema: s, casing: "snake_case" });

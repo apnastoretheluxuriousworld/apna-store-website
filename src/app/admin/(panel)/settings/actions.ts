@@ -2,7 +2,10 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
-import { requireAdmin } from "@/lib/auth/session";
+import { changePassword, deleteUserSessions } from "@/lib/auth/core";
+import { HashBusy } from "@/lib/auth/password";
+import { currentSessionToken, requireAdmin } from "@/lib/auth/session";
+import { changeAdminPasswordSchema } from "@/lib/validation/admin-password";
 import { db, schema as s } from "@/lib/db";
 import { SETTINGS_TAG } from "@/lib/data/settings";
 import { storeInfoSchema } from "@/lib/validation/settings";
@@ -62,5 +65,33 @@ export async function savePaymentSettings(input: unknown): Promise<ActionResult>
   } catch (e) {
     console.error("[savePaymentSettings]", e);
     return { ok: false, error: "Couldn't save the payment settings. Please try again." };
+  }
+}
+
+/**
+ * Admin → Settings → Password. Not an optimistic/outbox save: the current
+ * password has to be checked on the server first, so the form waits for this.
+ * Rate limited (5 wrong tries per 15 min, same counter as customers' PIN change).
+ * A new password signs the admin out on every other device, not this one.
+ */
+export async function changeAdminPassword(input: unknown): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const parsed = changeAdminPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: zodFieldErrors(parsed.error) };
+  }
+  try {
+    const res = await changePassword(db(), { userId: admin.id, current: parsed.data.current, next: parsed.data.next });
+    if (!res.ok) {
+      return res.reason === "locked"
+        ? { ok: false, error: "Too many wrong attempts. Please wait 15 minutes and try again." }
+        : { ok: false, error: "Your current password is incorrect.", fieldErrors: { current: "Incorrect password" } };
+    }
+    await deleteUserSessions(db(), admin.id, await currentSessionToken());
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof HashBusy) return { ok: false, error: "The server is busy. Please try again in a moment." };
+    console.error("[changeAdminPassword]", e instanceof Error ? e.message : e);
+    return { ok: false, error: "Couldn't change the password. Please try again." };
   }
 }
