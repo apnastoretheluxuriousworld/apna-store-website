@@ -20,7 +20,7 @@ const order = [asc(s.reels.sortOrder), desc(s.reels.createdAt)];
 export async function getStoreFeed(): Promise<FeedVideo[]> {
   "use cache";
   cacheTag(FEED_TAG);
-  cacheLife("hours");
+  cacheLife("store");
   const rows = await db()
     .select()
     .from(s.reels)

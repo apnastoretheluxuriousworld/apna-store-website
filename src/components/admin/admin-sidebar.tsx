@@ -11,19 +11,22 @@ import { SignOutButton } from "./sign-out-button";
 import { cn } from "@/lib/utils";
 
 /** Desktop (lg+) fixed sidebar. The active highlight needs the URL, so it streams in. */
-export function AdminSidebar({ userSlot }: { userSlot: React.ReactNode }) {
+/** `badges`: per-link count slots (e.g. pending reviews), keyed by href. */
+type Badges = Partial<Record<string, React.ReactNode>>;
+
+export function AdminSidebar({ userSlot, badges = {} }: { userSlot: React.ReactNode; badges?: Badges }) {
   return (
-    <Suspense fallback={<SidebarView userSlot={userSlot} pathname={null} />}>
-      <SidebarWithPath userSlot={userSlot} />
+    <Suspense fallback={<SidebarView userSlot={userSlot} badges={badges} pathname={null} />}>
+      <SidebarWithPath userSlot={userSlot} badges={badges} />
     </Suspense>
   );
 }
 
-function SidebarWithPath({ userSlot }: { userSlot: React.ReactNode }) {
-  return <SidebarView userSlot={userSlot} pathname={usePathname()} />;
+function SidebarWithPath({ userSlot, badges }: { userSlot: React.ReactNode; badges: Badges }) {
+  return <SidebarView userSlot={userSlot} badges={badges} pathname={usePathname()} />;
 }
 
-function SidebarView({ userSlot, pathname }: { userSlot: React.ReactNode; pathname: string | null }) {
+function SidebarView({ userSlot, badges, pathname }: { userSlot: React.ReactNode; badges: Badges; pathname: string | null }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-ink-600/60 bg-ink-950 lg:flex">
       <Link href="/admin" className="flex items-center gap-3 px-6 pt-7 pb-8">
@@ -57,7 +60,8 @@ function SidebarView({ userSlot, pathname }: { userSlot: React.ReactNode; pathna
                 />
               )}
               <Icon className="relative size-4.5" strokeWidth={1.5} />
-              <span className="relative">{label}</span>
+              <span className="relative flex-1">{label}</span>
+              {badges[href] && <span className="relative">{badges[href]}</span>}
             </Link>
           );
         })}

@@ -4,6 +4,9 @@
  */
 import { z } from "zod";
 
+/** Collections shown as a product row on the homepage (Admin → Categories). */
+export const MAX_HOME_COLLECTIONS = 3;
+
 export const FIELD_TYPES = ["text", "number", "select", "boolean"] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 

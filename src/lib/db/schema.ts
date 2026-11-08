@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   index,
@@ -43,7 +44,8 @@ const sortOrder = () => integer().notNull().default(0);
 export const userRole = pgEnum("user_role", ["customer", "admin"]);
 export const fieldType = pgEnum("field_type", ["text", "number", "select", "boolean"]);
 export const productStatus = pgEnum("product_status", ["draft", "active"]);
-export const paymentMethod = pgEnum("payment_method", ["razorpay", "cod"]);
+/** upi = customer scans the store's QR, uploads a screenshot, the admin verifies it. */
+export const paymentMethod = pgEnum("payment_method", ["razorpay", "cod", "upi"]);
 export const paymentStatus = pgEnum("payment_status", ["pending", "paid", "failed", "refunded"]);
 export const orderStatus = pgEnum("order_status", [
   "placed",
@@ -76,6 +78,11 @@ export const users = pgTable(
     username: text().unique(), // stored lower-case
     passwordHash: text().notNull(),
     role: userRole().notNull().default("customer"),
+    /** Blocked accounts can't sign in; their sessions are ended when blocked. */
+    isBlocked: boolean().notNull().default(false),
+    lastLoginAt: timestamp({ withTimezone: true }),
+    /** Private note from the store about this customer (admin only). */
+    adminNote: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -249,19 +256,42 @@ export const orders = pgTable(
     shippingAddress: jsonb().$type<ShippingAddress>().notNull(),
     subtotal: integer().notNull(),
     shippingFee: integer().notNull().default(0),
+    /** Cash on delivery charge (set in admin), included in the total. */
+    codFee: integer().notNull().default(0),
+    /** Return charge the customer agreed to at checkout (null = none shown). Not part of the total. */
+    returnFee: integer(),
     discount: integer().notNull().default(0),
     total: integer().notNull(),
+    /** The code as typed at checkout (kept even if the coupon is later edited or deleted). */
     couponCode: text(),
+    couponId: uuid().references((): AnyPgColumn => coupons.id, { onDelete: "set null" }),
+    /** The coupon's influencer and the commission they earn on this order, fixed when it's placed. */
+    influencerId: uuid().references((): AnyPgColumn => influencers.id, { onDelete: "set null" }),
+    commission: integer().notNull().default(0),
     paymentMethod: paymentMethod().notNull(),
     paymentStatus: paymentStatus().notNull().default("pending"),
     status: orderStatus().notNull().default("placed"),
     razorpayOrderId: text().unique(),
     razorpayPaymentId: text(),
+    /** Secret for the order's status page (/order/<token>), so guests can follow their order. */
+    accessToken: text().unique(),
+    /** UPI: the customer's payment screenshot and UTR / transaction id. */
+    paymentProofUrl: text(),
+    paymentReference: text(),
+    /** Why the store rejected a payment screenshot (shown to the customer). */
+    paymentNote: text(),
+    paymentVerifiedAt: timestamp({ withTimezone: true }),
+    /** COD: when the customer ticked "I'll pay cash on delivery". */
+    codConsentAt: timestamp({ withTimezone: true }),
     notes: text(),
+    // Shipment tracking, filled in by the store when the order ships.
+    courierName: text(),
+    trackingNumber: text(),
+    trackingUrl: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index().on(t.userId), index().on(t.status, t.createdAt)],
+  (t) => [index().on(t.userId), index().on(t.status, t.createdAt), index().on(t.couponId), index().on(t.influencerId), index().on(t.customerPhone)],
 ).enableRLS();
 
 export const orderItems = pgTable(
@@ -298,18 +328,50 @@ export const orderStatusHistory = pgTable(
   (t) => [index().on(t.orderId)],
 ).enableRLS();
 
-export const coupons = pgTable("coupons", {
+/** A partner (influencer, page, affiliate) who promotes the store with their own coupon codes. */
+export const influencers = pgTable("influencers", {
   id: id(),
-  code: text().notNull().unique(), // stored upper-case
-  type: couponType().notNull(),
-  value: integer().notNull(), // percent (1–100) or flat rupees
-  minOrder: integer().notNull().default(0),
-  maxUses: integer(),
-  usedCount: integer().notNull().default(0),
-  expiresAt: timestamp({ withTimezone: true }),
+  name: text().notNull(),
+  /** Instagram / YouTube handle, without the @. */
+  handle: text(),
+  phone: text(),
+  /** % of the order value (after discount, before shipping) they earn on delivered orders. 0 = none. */
+  commissionPercent: integer().notNull().default(0),
+  notes: text(),
   isActive: boolean().notNull().default(true),
   createdAt: createdAt(),
 }).enableRLS();
+
+/**
+ * Discount codes. How many times a code was used is counted from orders
+ * (cancelled ones don't count), so a cancellation gives the use back.
+ */
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: id(),
+    code: text().notNull().unique(), // stored upper-case
+    type: couponType().notNull(),
+    value: integer().notNull(), // percent (1–100) or flat rupees
+    /** Percent coupons: most it can take off, in rupees (null = no cap). */
+    maxDiscount: integer(),
+    minOrder: integer().notNull().default(0),
+    /** Total uses across all customers (null = unlimited). */
+    maxUses: integer(),
+    /** Uses per customer, matched by mobile number (null = unlimited). */
+    perCustomerLimit: integer().default(1),
+    /** Only for customers with no earlier order. */
+    firstOrderOnly: boolean().notNull().default(false),
+    influencerId: uuid().references(() => influencers.id, { onDelete: "set null" }),
+    /** Internal note for the store (never shown to customers). */
+    note: text(),
+    startsAt: timestamp({ withTimezone: true }),
+    expiresAt: timestamp({ withTimezone: true }),
+    isActive: boolean().notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.influencerId)],
+).enableRLS();
 
 /* ───────────── Engagement ───────────── */
 
@@ -420,3 +482,70 @@ export const settings = pgTable("settings", {
   value: jsonb().notNull(),
   updatedAt: updatedAt(),
 }).enableRLS();
+
+/* ───────────── Admin notifications ───────────── */
+
+/** order = new order · payment = UPI screenshot to verify · review = new/edited customer review · feedback = customer message. */
+export const notificationType = pgEnum("notification_type", ["order", "payment", "review", "feedback"]);
+
+/**
+ * What the store needs to look at, newest first (Admin → Notifications).
+ * Read state is shared by all admins (one small team). Rows older than
+ * 90 days are pruned when new ones are written.
+ */
+export const adminNotifications = pgTable(
+  "admin_notifications",
+  {
+    id: id(),
+    type: notificationType().notNull(),
+    title: text().notNull(),
+    body: text(),
+    /** Admin page to open, e.g. /admin/orders/<id>. */
+    href: text().notNull(),
+    readAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.createdAt), index().on(t.readAt)],
+).enableRLS();
+
+/* ───────────── Customer feedback (chat with the store) ───────────── */
+
+export const messageSender = pgEnum("message_sender", ["customer", "admin"]);
+
+/**
+ * One ongoing conversation per signed-in customer (like a WhatsApp chat
+ * with the store). Read markers decide what's unread on each side.
+ */
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lastMessageAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    lastMessagePreview: text(),
+    lastSender: messageSender(),
+    customerReadAt: timestamp({ withTimezone: true }),
+    adminReadAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.lastMessageAt)],
+).enableRLS();
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: id(),
+    conversationId: uuid()
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    sender: messageSender().notNull(),
+    /** The admin who replied (null for customer messages, or if that admin was removed). */
+    adminId: uuid().references(() => users.id, { onDelete: "set null" }),
+    body: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.conversationId, t.createdAt)],
+).enableRLS();

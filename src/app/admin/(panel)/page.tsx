@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { count, eq, sql } from "drizzle-orm";
 import { cacheLife } from "next/cache";
-import { ArrowUpRight, CheckCircle2, CircleDashed, FolderTree, Package, ReceiptText, Users } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, CircleDashed, FolderTree, Package, ReceiptText, Star, Users } from "lucide-react";
 import { Card, PageHeader } from "@/components/admin/ui";
 import { requireAdminView } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { formatPrice } from "@/lib/format";
+import { countPendingReviews } from "@/lib/data/reviews";
+import { getStorageUsage } from "@/lib/data/storage-usage";
+import { StorageUsageCard } from "@/components/admin/storage-usage-card";
 
 /** Private-cached: kept with the page in the admin's browser (see the `admin` profile). */
 async function getStats() {
@@ -26,6 +29,7 @@ async function getStats() {
         n: count(),
         pending: sql<number>`count(*) filter (where ${s.orders.status} in ('placed','confirmed','packed'))::int`,
         revenue: sql<number>`coalesce(sum(${s.orders.total}) filter (where ${s.orders.paymentStatus} = 'paid'), 0)::int`,
+        toVerify: sql<number>`count(*) filter (where ${s.orders.paymentMethod} = 'upi' and ${s.orders.paymentStatus} = 'pending' and ${s.orders.status} <> 'cancelled')::int`,
       })
       .from(s.orders),
     d.select({ n: count() }).from(s.users).where(eq(s.users.role, "customer")),
@@ -46,13 +50,24 @@ async function storageReady() {
 
 export default async function AdminDashboard() {
   const user = await requireAdminView();
-  const [{ cats, prods, ords, custs }, storageOk] = await Promise.all([getStats(), storageReady()]);
+  const [{ cats, prods, ords, custs }, storageOk, pendingReviews, storageUsage] = await Promise.all([
+    getStats(),
+    storageReady(),
+    countPendingReviews(),
+    getStorageUsage(),
+  ]);
 
   const stats = [
     { label: "Categories", value: cats.n, sub: "collections", icon: FolderTree, href: "/admin/categories" },
     { label: "Products", value: prods.n, sub: `${prods.active} live`, icon: Package, href: "/admin/products" },
-    { label: "Orders", value: ords.n, sub: `${ords.pending} to fulfil`, icon: ReceiptText, href: "/admin/orders" },
-    { label: "Customers", value: custs.n, sub: "registered", icon: Users, href: "/admin/orders" },
+    {
+      label: "Orders",
+      value: ords.n,
+      sub: ords.toVerify ? `${ords.toVerify} payment${ords.toVerify > 1 ? "s" : ""} to verify` : `${ords.pending} to fulfil`,
+      icon: ReceiptText,
+      href: ords.toVerify ? "/admin/orders?tab=verify" : "/admin/orders",
+    },
+    { label: "Customers", value: custs.n, sub: "registered", icon: Users, href: "/admin/customers" },
   ];
 
   const checklist = [
@@ -82,6 +97,23 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {pendingReviews > 0 && (
+        <Link href="/admin/reviews?status=pending" className="group mt-3 block lg:mt-5">
+          <Card className="flex items-center gap-4 border-gold-500/30 bg-gold-500/5 transition-colors group-hover:border-gold-500/50">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold-500/15">
+              <Star className="size-4.5 text-gold-400" strokeWidth={1.5} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm text-ivory">
+                {pendingReviews} review{pendingReviews > 1 ? "s" : ""} to approve
+              </span>
+              <span className="block text-xs text-mute">From customers. Hidden from the store until you publish.</span>
+            </span>
+            <ArrowUpRight className="size-4 text-gold-400" />
+          </Card>
+        </Link>
+      )}
 
       <div className="mt-3 grid gap-3 lg:mt-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -115,13 +147,17 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
+      <div className="mt-3 lg:mt-5">
+        <StorageUsageCard usage={storageUsage} />
+      </div>
+
       <Card className="mt-4 lg:mt-6">
         <h2 className="text-[0.7rem] font-medium uppercase tracking-[0.2em] text-ivory">Quick links</h2>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {[
             { label: "Manage categories", href: "/admin/categories" },
             { label: "Add a product", href: "/admin/products" },
-            { label: "Edit homepage", href: "/admin/homepage" },
+            { label: "Customer feedback", href: "/admin/feedback" },
           ].map((l) => (
             <Link
               key={l.href}

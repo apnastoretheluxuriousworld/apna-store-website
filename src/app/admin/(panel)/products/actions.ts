@@ -14,7 +14,7 @@ import { pgCode, zodFieldErrors, type ActionResult } from "@/lib/actions";
 
 type Tx = Parameters<Parameters<ReturnType<typeof db>["transaction"]>[0]>[0];
 
-/** Refresh the storefront's cached products (F6) and the admin's client cache. */
+/** Refresh the storefront's cached products and the admin's client cache. */
 function productsChanged() {
   updateTag(PRODUCTS_TAG);
   revalidatePath("/admin", "layout");

@@ -5,7 +5,10 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminBottomBar, AdminMobileTop } from "@/components/admin/admin-mobile-nav";
 import { PanelSkeleton } from "@/components/admin/ui";
 import { OutboxStatus } from "@/components/admin/outbox";
+import { NotificationsProvider, UnreadBadge } from "@/components/admin/notifications";
 import { requireAdminView } from "@/lib/auth/session";
+import { countPendingReviews } from "@/lib/data/reviews";
+import { countUnreadConversations } from "@/lib/data/feedback";
 
 export const metadata: Metadata = {
   title: { default: "Dashboard", template: "%s · Admin · Apna Store" },
@@ -18,18 +21,9 @@ async function AdminGate({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-async function UserBadge({ compact }: { compact?: boolean }) {
+async function UserBadge() {
   const user = await requireAdminView();
   const initial = user.name.trim().charAt(0).toUpperCase() || "A";
-  if (compact) {
-    return (
-      <span className="flex items-center gap-2 text-stone">
-        <span className="grid size-7 place-items-center rounded-full bg-gold-500/15 text-[0.7rem] font-semibold text-gold-300">
-          {initial}
-        </span>
-      </span>
-    );
-  }
   return (
     <div className="flex items-center gap-3 px-3 py-2">
       <span className="grid size-8 place-items-center rounded-full bg-gold-500/15 text-xs font-semibold text-gold-300">
@@ -42,6 +36,51 @@ async function UserBadge({ compact }: { compact?: boolean }) {
     </div>
   );
 }
+
+/** Reviews waiting for approval: a count in the menu, or just a dot on "More". */
+async function PendingReviews({ dot }: { dot?: boolean }) {
+  await requireAdminView();
+  const n = await countPendingReviews();
+  if (!n) return null;
+  if (dot) return <span aria-label="Reviews waiting" className="block size-2 rounded-full bg-gold-400" />;
+  return (
+    <span
+      aria-label={`${n} waiting for approval`}
+      className="grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1.5 text-[0.65rem] font-semibold text-ink-950 tabular-nums"
+    >
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+/** Conversations with customer messages the store hasn't read. */
+async function UnreadFeedback() {
+  await requireAdminView();
+  const n = await countUnreadConversations();
+  if (!n) return null;
+  return (
+    <span
+      aria-label={`${n} unread conversation${n > 1 ? "s" : ""}`}
+      className="grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1.5 text-[0.65rem] font-semibold text-ink-950 tabular-nums"
+    >
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+const navBadges = {
+  "/admin/feedback": (
+    <Suspense fallback={null}>
+      <UnreadFeedback />
+    </Suspense>
+  ),
+  "/admin/notifications": <UnreadBadge />,
+  "/admin/reviews": (
+    <Suspense fallback={null}>
+      <PendingReviews />
+    </Suspense>
+  ),
+};
 
 /*
  * The <Suspense> boundaries below only cover a full page load. On a client
@@ -61,21 +100,17 @@ async function UserBadge({ compact }: { compact?: boolean }) {
  */
 export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
   return (
+    <NotificationsProvider>
     <div className="min-h-dvh bg-ink-900 lg:pl-64">
       <AdminSidebar
+        badges={navBadges}
         userSlot={
           <Suspense fallback={<div className="h-12" />}>
             <UserBadge />
           </Suspense>
         }
       />
-      <AdminMobileTop
-        userSlot={
-          <Suspense fallback={null}>
-            <UserBadge compact />
-          </Suspense>
-        }
-      />
+      <AdminMobileTop />
 
       <main className="mx-auto max-w-site px-3 pt-[4.5rem] pb-28 sm:px-4 lg:px-8 lg:pt-8 lg:pb-12">
         <Suspense fallback={<PanelSkeleton />}>
@@ -83,7 +118,14 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
         </Suspense>
       </main>
 
-      <AdminBottomBar />
+      <AdminBottomBar
+        badges={navBadges}
+        moreBadge={
+          <Suspense fallback={null}>
+            <PendingReviews dot />
+          </Suspense>
+        }
+      />
       {/* Background sync of optimistic saves (see components/admin/outbox.tsx) */}
       {/* Suspense: it reads the URL (useRouter/usePathname), which can't be prerendered */}
       <Suspense fallback={null}>
@@ -96,5 +138,6 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
         toastOptions={{ style: { background: "#141414", border: "1px solid rgba(212,175,55,0.25)", color: "#f5f1e8" } }}
       />
     </div>
+    </NotificationsProvider>
   );
 }

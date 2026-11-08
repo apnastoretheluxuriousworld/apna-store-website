@@ -5,8 +5,8 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
-import { CATEGORIES_TAG } from "@/lib/data/categories";
-import { categoryInputSchema } from "@/lib/validation/category";
+import { CATEGORIES_TAG, HOME_COLLECTIONS_SETTING, resolveHomeCollectionIds } from "@/lib/data/categories";
+import { MAX_HOME_COLLECTIONS, categoryInputSchema } from "@/lib/validation/category";
 import { deleteUnreferencedUploads } from "@/lib/storage/cleanup";
 import { pgCode, zodFieldErrors, type ActionResult } from "@/lib/actions";
 
@@ -163,6 +163,23 @@ export async function setCategoryActive(id: string, isActive: boolean): Promise<
   await requireAdmin();
   if (!idSchema.safeParse(id).success || typeof isActive !== "boolean") return { ok: false, error: "Invalid request." };
   await db().update(s.categories).set({ isActive }).where(inArray(s.categories.id, [id]));
+  categoriesChanged();
+  return { ok: true };
+}
+
+/** Show/remove a category as a product row on the homepage (up to MAX_HOME_COLLECTIONS). */
+export async function setHomeCollection(id: string, on: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  if (!idSchema.safeParse(id).success || typeof on !== "boolean") return { ok: false, error: "Invalid request." };
+  const current = await resolveHomeCollectionIds();
+  const next = on ? [...current.filter((x) => x !== id), id] : current.filter((x) => x !== id);
+  if (next.length > MAX_HOME_COLLECTIONS) {
+    return { ok: false, error: `Up to ${MAX_HOME_COLLECTIONS} collections can be on the homepage. Remove one first.` };
+  }
+  await db()
+    .insert(s.settings)
+    .values({ key: HOME_COLLECTIONS_SETTING, value: next })
+    .onConflictDoUpdate({ target: s.settings.key, set: { value: next, updatedAt: new Date() } });
   categoriesChanged();
   return { ok: true };
 }

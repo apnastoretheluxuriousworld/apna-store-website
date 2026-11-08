@@ -44,13 +44,56 @@ export async function getStoreCategories(): Promise<NavCategory[]> {
     cacheLife("minutes");
     return fallbackCategories;
   }
-  cacheLife("hours");
+  cacheLife("store");
   return rows.map((r) => ({
     name: r.name,
     slug: r.slug,
     blurb: r.description ?? "",
     imageUrl: r.imageUrl,
   }));
+}
+
+/*
+ * ───────────── Homepage collection rows ─────────────
+ * Admin picks up to MAX_HOME_COLLECTIONS categories (stored as ids in the
+ * settings row below). Until the admin has chosen, the first two are used.
+ */
+
+export const HOME_COLLECTIONS_SETTING = "home_collections";
+
+/** Ids of the homepage collections, in category order; hidden categories included (admin view). */
+export async function resolveHomeCollectionIds(): Promise<string[]> {
+  const d = db();
+  const [[setting], cats] = await Promise.all([
+    d.select().from(s.settings).where(eq(s.settings.key, HOME_COLLECTIONS_SETTING)),
+    d
+      .select({ id: s.categories.id })
+      .from(s.categories)
+      .orderBy(asc(s.categories.sortOrder), asc(s.categories.name)),
+  ]);
+  if (!setting || !Array.isArray(setting.value)) return cats.slice(0, 2).map((c) => c.id);
+  const chosen = new Set(setting.value as string[]);
+  return cats.filter((c) => chosen.has(c.id)).map((c) => c.id);
+}
+
+/** Storefront: slugs of the visible homepage collections, in category order. */
+export async function getHomeCollectionSlugs(): Promise<string[]> {
+  "use cache";
+  cacheTag(CATEGORIES_TAG);
+  try {
+    const ids = new Set(await resolveHomeCollectionIds());
+    const rows = await db()
+      .select({ id: s.categories.id, slug: s.categories.slug })
+      .from(s.categories)
+      .where(eq(s.categories.isActive, true))
+      .orderBy(asc(s.categories.sortOrder), asc(s.categories.name));
+    cacheLife("store");
+    return rows.filter((r) => ids.has(r.id)).map((r) => r.slug);
+  } catch (e) {
+    console.warn("[home collections] query failed:", e instanceof Error ? e.message : e);
+    cacheLife("minutes");
+    return [];
+  }
 }
 
 /*
@@ -84,6 +127,12 @@ export async function listCategoriesForAdmin() {
 }
 
 export type AdminCategoryRow = Awaited<ReturnType<typeof listCategoriesForAdmin>>[number];
+
+export async function getHomeCollectionIdsForAdmin() {
+  "use cache: private";
+  cacheLife("admin");
+  return resolveHomeCollectionIds();
+}
 
 export async function getCategoryWithFields(id: string) {
   "use cache: private";

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
-import { ProductCard } from "@/components/product/product-card";
+import { Reveal } from "@/components/motion/reveal";
+import { CategoryGrid } from "@/components/product/category-grid";
+import { CollectionRow } from "@/components/product/collection-row";
 import { getStoreCategories } from "@/lib/data/categories";
-import { getCategoryProducts } from "@/lib/data/products";
+import { getCategoryProductsPage, getCollectionRowProducts, getProductCounts } from "@/lib/data/products";
 
 export async function generateMetadata({ params }: PageProps<"/shop/[category]">): Promise<Metadata> {
   const { category } = await params;
@@ -32,9 +33,18 @@ export default function CategoryPage({ params }: PageProps<"/shop/[category]">) 
 
 async function CategoryContent({ params }: { params: PageProps<"/shop/[category]">["params"] }) {
   const { category } = await params;
-  const cat = (await getStoreCategories()).find((c) => c.slug === category);
-  if (!cat) notFound();
-  const products = await getCategoryProducts(cat.slug);
+  const categories = await getStoreCategories();
+  const at = categories.findIndex((c) => c.slug === category);
+  if (at < 0) notFound();
+  const cat = categories[at];
+  // "More collections": the next two in the store's order (wrapping round), each as a row of up to 10.
+  const others = [1, 2].map((n) => categories[(at + n) % categories.length]).filter((c, i, a) => c.slug !== cat.slug && a.indexOf(c) === i);
+  const [{ products, hasMore }, counts, rows] = await Promise.all([
+    getCategoryProductsPage(cat.slug),
+    getProductCounts(),
+    Promise.all(others.map(async (c) => ({ ...c, products: await getCollectionRowProducts(c.slug) }))),
+  ]);
+  const total = counts[cat.slug] ?? products.length;
 
   return (
     <>
@@ -53,16 +63,20 @@ async function CategoryContent({ params }: { params: PageProps<"/shop/[category]
       ) : (
         <>
           <p className="mb-4 text-xs uppercase tracking-[0.2em] text-mute">
-            {products.length} {products.length === 1 ? "piece" : "pieces"}
+            {total} {total === 1 ? "piece" : "pieces"}
           </p>
-          <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-            {products.map((p) => (
-              <RevealItem key={p.id}>
-                <ProductCard product={p} />
-              </RevealItem>
-            ))}
-          </RevealGroup>
+          <CategoryGrid key={cat.slug} slug={cat.slug} initial={products} initialHasMore={hasMore} />
         </>
+      )}
+
+      {rows.some((r) => r.products.length > 0) && (
+        <div className="-mx-4 mt-10 lg:-mx-12 lg:mt-16">
+          {rows
+            .filter((r) => r.products.length > 0)
+            .map((r) => (
+              <CollectionRow key={r.slug} name={r.name} slug={r.slug} products={r.products} />
+            ))}
+        </div>
       )}
     </>
   );
@@ -75,7 +89,7 @@ function CategorySkeleton() {
         <div className="h-3 w-24 rounded bg-ink-800" />
         <div className="h-12 w-56 rounded bg-ink-800" />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="aspect-4/5 rounded-xl bg-ink-850" />
         ))}

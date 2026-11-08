@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useMotionValueEvent, useScroll } from "motion/react";
+import { useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
 import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { BagBadge } from "@/components/cart/bag-badge";
 import { useMenu } from "./menu-context";
 import type { NavCategory } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ const iconLinks = [
   { label: "Search", href: "/search", icon: Search },
   { label: "Wishlist", href: "/wishlist", icon: Heart },
   { label: "Account", href: "/account", icon: User },
-  { label: "Bag", href: "/cart", icon: ShoppingBag },
+  { label: "Cart", href: "/cart", icon: ShoppingBag },
 ];
 
 // Desktop header shows the first 5 collections (admin order); the sidebar lists all.
@@ -28,16 +29,15 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
   useMotionValueEvent(scrollY, "change", (y) => {
     const prev = scrollY.getPrevious() ?? 0;
     setScrolled(y > 24);
-    // Hide while scrolling down, reveal on scroll up.
+    // Phones: hide while scrolling down, reveal on scroll up. Desktop: always pinned.
     setHidden(y > 160 && y > prev);
   });
 
   return (
-    <motion.header
-      animate={{ y: hidden ? "-100%" : "0%" }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+    <header
       className={cn(
-        "fixed inset-x-0 top-0 z-30 transition-[background-color,backdrop-filter] duration-500",
+        "fixed inset-x-0 top-0 z-30 transition-[background-color,backdrop-filter,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        hidden && "max-lg:-translate-y-full",
         scrolled
           ? "bg-ink-950/80 backdrop-blur-xl"
           : "bg-linear-to-b from-ink-950/80 to-transparent",
@@ -74,9 +74,10 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
               key={href}
               href={href}
               aria-label={label}
-              className="text-ivory/80 transition-colors hover:text-gold-400"
+              className="relative text-ivory/80 transition-colors hover:text-gold-400"
             >
               <Icon className="size-5" strokeWidth={1.25} />
+              {href === "/cart" && <BagBadge />}
             </Link>
           ))}
           <span className="h-6 w-px bg-ivory/15" aria-hidden />
@@ -98,6 +99,6 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
           scrolled ? "opacity-40" : "opacity-0",
         )}
       />
-    </motion.header>
+    </header>
   );
 }

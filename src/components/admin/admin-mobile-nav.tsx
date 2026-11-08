@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-/** Mobile top bar (brand + who's signed in). */
-export function AdminMobileTop({ userSlot }: { userSlot: React.ReactNode }) {
+/** Mobile top bar (brand only; sign out lives in the "More" sheet). */
+export function AdminMobileTop() {
   return (
     <header
       className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-ink-600/60 bg-ink-950/90 px-4 backdrop-blur-xl lg:hidden"
@@ -23,29 +23,34 @@ export function AdminMobileTop({ userSlot }: { userSlot: React.ReactNode }) {
         <Emblem className="h-6" />
         <span className="font-serif text-base tracking-[0.12em] text-ivory uppercase">Admin</span>
       </Link>
-      <div className="text-right text-xs">{userSlot}</div>
     </header>
   );
 }
 
 /** Mobile bottom bar: 4 primary sections + "More" sheet. Highlight streams in with the URL. */
-export function AdminBottomBar() {
+type Badges = Partial<Record<string, React.ReactNode>>;
+
+/**
+ * `badges`: per-link count slots keyed by href, shown in the "More" sheet.
+ * `moreBadge`: a dot on the "More" button when anything inside needs attention.
+ */
+export function AdminBottomBar({ badges = {}, moreBadge }: { badges?: Badges; moreBadge?: React.ReactNode }) {
   return (
-    <Suspense fallback={<BottomBarView pathname="" />}>
-      <BottomBarWithPath />
+    <Suspense fallback={<BottomBarView pathname="" badges={badges} moreBadge={moreBadge} />}>
+      <BottomBarWithPath badges={badges} moreBadge={moreBadge} />
     </Suspense>
   );
 }
 
-function BottomBarWithPath() {
-  return <BottomBarView pathname={usePathname()} />;
+function BottomBarWithPath({ badges, moreBadge }: { badges: Badges; moreBadge?: React.ReactNode }) {
+  return <BottomBarView pathname={usePathname()} badges={badges} moreBadge={moreBadge} />;
 }
 
-function BottomBarView({ pathname }: { pathname: string }) {
+function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badges: Badges; moreBadge?: React.ReactNode }) {
   // Open state is tied to the pathname it was opened on, so navigating closes it.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === pathname;
-  const primary = adminNav.filter((i) => i.primary);
+  const primary = adminNav.filter((i) => i.primary).sort((a, b) => a.primary! - b.primary!);
   const more = adminNav.filter((i) => !i.primary);
   const moreActive = more.some((i) => isActive(pathname, i.href));
 
@@ -80,8 +85,9 @@ function BottomBarView({ pathname }: { pathname: string }) {
                       isActive(pathname, href) ? "bg-gold-500/10 text-gold-300" : "text-stone",
                     )}
                   >
-                    <span className="grid size-10 place-items-center rounded-full border border-gold-500/30">
+                    <span className="relative grid size-10 place-items-center rounded-full border border-gold-500/30">
                       <Icon className="size-4.5 text-gold-400" strokeWidth={1.5} />
+                      {badges[href] && <span className="absolute -top-1.5 -right-2">{badges[href]}</span>}
                     </span>
                     {label}
                   </Link>
@@ -118,7 +124,10 @@ function BottomBarView({ pathname }: { pathname: string }) {
                     active ? "text-gold-400" : "text-stone",
                   )}
                 >
-                  <Icon className="size-5" strokeWidth={active ? 1.75 : 1.25} />
+                  <span className="relative">
+                    <Icon className="size-5" strokeWidth={active ? 1.75 : 1.25} />
+                    {badges[href] && <span className="absolute -top-2 left-3">{badges[href]}</span>}
+                  </span>
                   {label}
                 </Link>
               </li>
@@ -134,7 +143,10 @@ function BottomBarView({ pathname }: { pathname: string }) {
                 open || moreActive ? "text-gold-400" : "text-stone",
               )}
             >
-              {open ? <X className="size-5" strokeWidth={1.5} /> : <MoreHorizontal className="size-5" strokeWidth={1.25} />}
+              <span className="relative">
+                {open ? <X className="size-5" strokeWidth={1.5} /> : <MoreHorizontal className="size-5" strokeWidth={1.25} />}
+                {!open && moreBadge && <span className="absolute -top-0.5 -right-1">{moreBadge}</span>}
+              </span>
               More
             </button>
           </li>

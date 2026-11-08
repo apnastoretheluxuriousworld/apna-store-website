@@ -1,9 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema as s } from "@/lib/db";
 import type { ReviewMedia } from "@/lib/db/schema";
-import type { ReviewStatus } from "@/lib/validation/review";
+import { VIDEO_URL_PG_REGEX } from "@/lib/media";
+import { REVIEWABLE_ORDER_STATUSES, type ReviewStatus } from "@/lib/validation/review";
 
 /**
  * Cache tag for everything that shows reviews. Review actions call
@@ -43,7 +44,7 @@ export const STORE_REVIEWS_LIMIT = 60;
 export async function getProductReviews(productId: string): Promise<{ summary: ReviewSummary; reviews: StoreReview[] }> {
   "use cache";
   cacheTag(REVIEWS_TAG);
-  cacheLife("hours");
+  cacheLife("store");
   const d = db();
   const published = and(eq(s.reviews.productId, productId), eq(s.reviews.isApproved, true));
   const [rows, stats] = await Promise.all([
@@ -89,6 +90,101 @@ export async function getProductReviews(productId: string): Promise<{ summary: R
     summary: { average: count ? Math.round((total / count) * 10) / 10 : null, count, distribution, mediaCount },
     reviews: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
   };
+}
+
+/*
+ * ───────────── Customer (signed in) ─────────────
+ * A customer may review a product once one of their orders containing it has
+ * shipped. One review per product; editing it sends it back for approval.
+ */
+
+/** City from the latest shipped order with this product, or null if they can't review it. */
+async function reviewableOrderCity(userId: string, productId: string): Promise<{ city: string | null } | null> {
+  const [row] = await db()
+    .select({ city: sql<string | null>`${s.orders.shippingAddress}->>'city'` })
+    .from(s.orders)
+    .innerJoin(s.orderItems, eq(s.orderItems.orderId, s.orders.id))
+    .where(
+      and(
+        eq(s.orders.userId, userId),
+        eq(s.orderItems.productId, productId),
+        inArray(s.orders.status, [...REVIEWABLE_ORDER_STATUSES]),
+      ),
+    )
+    .orderBy(desc(s.orders.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/** For Server Actions: checked fresh on every submit (never cached). */
+export async function canCustomerReview(userId: string, productId: string) {
+  return reviewableOrderCity(userId, productId);
+}
+
+/**
+ * Whether the customer has any order they could review (shipped or delivered).
+ * Gates review photo/video uploads, so an account that never bought anything
+ * can't use the store's bucket to host files.
+ */
+export async function hasReviewableOrder(userId: string) {
+  const [row] = await db()
+    .select({ id: s.orders.id })
+    .from(s.orders)
+    .where(and(eq(s.orders.userId, userId), inArray(s.orders.status, [...REVIEWABLE_ORDER_STATUSES])))
+    .limit(1);
+  return !!row;
+}
+
+/** The review page: product, the customer's existing review, or null if not allowed. */
+export async function getReviewTarget(userId: string, productId: string) {
+  "use cache: private";
+  cacheLife("account");
+  const d = db();
+  const [allowed, [product], [existing]] = await Promise.all([
+    reviewableOrderCity(userId, productId),
+    d
+      .select({
+        id: s.products.id,
+        name: s.products.name,
+        image: sql<string | null>`(select i."url" from "product_images" i where i."product_id" = "products"."id" and i."url" !~* ${VIDEO_URL_PG_REGEX} order by i."sort_order" limit 1)`,
+      })
+      .from(s.products)
+      .where(eq(s.products.id, productId)),
+    d
+      .select({ rating: s.reviews.rating, body: s.reviews.body, media: s.reviews.media, isApproved: s.reviews.isApproved })
+      .from(s.reviews)
+      .where(and(eq(s.reviews.userId, userId), eq(s.reviews.productId, productId))),
+  ]);
+  if (!allowed || !product) return null;
+  return { product, review: existing ?? null };
+}
+
+/** Which of these products the customer has already reviewed (for "Write" vs "Edit"). */
+export async function getMyReviewedProductIds(userId: string, productIds: string[]): Promise<string[]> {
+  if (!productIds.length) return [];
+  const rows = await db()
+    .select({ productId: s.reviews.productId })
+    .from(s.reviews)
+    .where(and(eq(s.reviews.userId, userId), inArray(s.reviews.productId, productIds)));
+  return rows.map((r) => r.productId);
+}
+
+/** Product page button: "write", "edit", or null when this customer can't review it. */
+export async function getReviewAction(userId: string, productId: string): Promise<"write" | "edit" | null> {
+  const [allowed, done] = await Promise.all([reviewableOrderCity(userId, productId), getMyReviewedProductIds(userId, [productId])]);
+  if (!allowed) return null;
+  return done.length ? "edit" : "write";
+}
+
+/** Admin menu badge + dashboard tile. */
+export async function countPendingReviews() {
+  "use cache: private";
+  cacheLife("admin");
+  const [row] = await db()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(s.reviews)
+    .where(eq(s.reviews.isApproved, false));
+  return row?.n ?? 0;
 }
 
 /*

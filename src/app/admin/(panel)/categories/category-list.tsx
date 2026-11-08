@@ -8,16 +8,23 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronRight, GripVertical } from "lucide-react";
+import { ChevronRight, GripVertical, House } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { Switch } from "@/components/admin/form";
-import { reorderCategories, setCategoryActive } from "./actions";
+import { reorderCategories, setCategoryActive, setHomeCollection } from "./actions";
+import { MAX_HOME_COLLECTIONS } from "@/lib/validation/category";
 import type { AdminCategoryRow } from "@/lib/data/categories";
 import { cn } from "@/lib/utils";
 import { SyncBadge, useOutbox, type Job } from "@/components/admin/outbox";
 
-export function CategoryList({ initial }: { initial: AdminCategoryRow[] }) {
+export function CategoryList({ initial, homeIds }: { initial: AdminCategoryRow[]; homeIds: string[] }) {
   const [rows, setRows] = useState(initial);
+  const [home, setHome] = useState(homeIds);
+  const [seenHome, setSeenHome] = useState(homeIds);
+  if (homeIds !== seenHome) {
+    setSeenHome(homeIds);
+    setHome(homeIds);
+  }
   // Next keeps visited pages mounted, so this component outlives a visit. When
   // the server sends fresh rows (after an action, or once the cached page goes
   // stale), adopt them instead of keeping the old local copy.
@@ -68,6 +75,24 @@ export function CategoryList({ initial }: { initial: AdminCategoryRow[] }) {
     });
   }
 
+  function toggleHome(row: AdminCategoryRow) {
+    const on = !home.includes(row.id);
+    if (on && home.length >= MAX_HOME_COLLECTIONS) {
+      toast.error(`Up to ${MAX_HOME_COLLECTIONS} collections can be on the homepage. Remove one first.`);
+      return;
+    }
+    const prev = home;
+    setHome(on ? [...home, row.id] : home.filter((x) => x !== row.id));
+    startTransition(async () => {
+      const res = await setHomeCollection(row.id, on);
+      if (res.ok) toast.success(on ? `${row.name} is on the homepage` : `${row.name} removed from the homepage`);
+      else {
+        setHome(prev);
+        toast.error(res.error);
+      }
+    });
+  }
+
   if (!shown.length) {
     return (
       <div className="rounded-xl border border-dashed border-ink-600 py-16 text-center text-sm text-mute">
@@ -81,7 +106,15 @@ export function CategoryList({ initial }: { initial: AdminCategoryRow[] }) {
       <SortableContext items={shown.map((r) => r.id)} strategy={verticalListSortingStrategy}>
         <ul className="divide-y divide-ink-600/60 overflow-hidden rounded-xl border border-ink-600/70 bg-ink-850">
           {shown.map((row) => (
-            <Row key={row.id} row={row} onToggle={toggle} sync={sync.get(row.id)} onServer={serverIds.has(row.id)} />
+            <Row
+              key={row.id}
+              row={row}
+              onToggle={toggle}
+              onHome={home.includes(row.id)}
+              onToggleHome={toggleHome}
+              sync={sync.get(row.id)}
+              onServer={serverIds.has(row.id)}
+            />
           ))}
         </ul>
       </SortableContext>
@@ -92,11 +125,15 @@ export function CategoryList({ initial }: { initial: AdminCategoryRow[] }) {
 function Row({
   row,
   onToggle,
+  onHome,
+  onToggleHome,
   sync,
   onServer,
 }: {
   row: AdminCategoryRow;
   onToggle: (id: string, v: boolean) => void;
+  onHome: boolean;
+  onToggleHome: (row: AdminCategoryRow) => void;
   sync?: Job["status"];
   onServer: boolean;
 }) {
@@ -145,6 +182,22 @@ function Row({
         </span>
         <ChevronRight className="size-4 shrink-0 text-mute group-hover:text-gold-400" />
       </IntentLink>
+
+      <button
+        type="button"
+        onClick={() => onToggleHome(row)}
+        aria-pressed={onHome}
+        aria-label={onHome ? `Remove ${row.name} from the homepage` : `Show ${row.name} on the homepage`}
+        title={onHome ? "On the homepage — tap to remove" : "Show on the homepage"}
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-full border transition-colors",
+          onHome
+            ? "border-gold-500/60 bg-gold-500/15 text-gold-300"
+            : "border-ink-600 text-mute hover:border-gold-500/40 hover:text-gold-300",
+        )}
+      >
+        <House className="size-4" strokeWidth={onHome ? 2 : 1.5} />
+      </button>
 
       <Switch checked={row.isActive} onChange={(v) => onToggle(row.id, v)} label={`Show ${row.name} in store`} />
     </li>

@@ -43,6 +43,55 @@
       "when": 1794087361639,
       "tag": "0005_product_track_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794131151105,
+      "tag": "0006_customer_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794145272615,
+      "tag": "0007_checkout",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794147095104,
+      "tag": "0008_cod_return_charges",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794151074420,
+      "tag": "0009_admin_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794159080177,
+      "tag": "0010_customer_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794163531887,
+      "tag": "0011_coupons_influencers",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794163532789,
+      "tag": "0012_coupons_drop_used_count",
+      "breakpoints": true
     }
   ]
 }

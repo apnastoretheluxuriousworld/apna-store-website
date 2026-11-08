@@ -3,7 +3,7 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import { storageEnv } from "@/lib/env";
 import * as core from "./core";
 
-export { UploadRejected, uploadFolders, uploadKinds, type UploadFolder } from "./core";
+export { UploadRejected, uploadFolders, uploadKinds, type BucketUsage, type UploadFolder } from "./core";
 
 function config(): core.StorageConfig {
   const e = storageEnv();
@@ -27,6 +27,8 @@ export const storage = {
   publicUrl: (key: string) => core.publicUrlFor(config(), key),
   delete: (key: string) => core.deleteObject(client(), config(), key),
   ping: () => core.pingBucket(client(), config()),
+  /** Total size of everything in the bucket — slow on big buckets; use getStorageUsage() (cached). */
+  usage: () => core.bucketUsage(client(), config()),
 };
 
 /** Object key for a URL inside our bucket, or null (external URL, demo path, or storage not set up). */

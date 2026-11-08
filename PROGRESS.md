@@ -11,8 +11,8 @@ We build one feature at a time: build → self-test → hand to the user to test
 | F5 | Admin: products (dynamic + per-product custom fields, images, variants) | 🟡 Built; blocked by the render-freeze bug below |
 | F6 | Storefront: catalog, filters, product page, search | — |
 | F7 | Homepage CMS: hero / reels / featured / testimonials (CRUD + drag) | — |
-| F8 | Customer accounts + wishlist | — |
-| F9 | Cart, coupons, checkout, Razorpay + COD rule | — |
+| F8 | Customer accounts + wishlist | 🟡 Accounts, order history + tracking, admin Customers built (2026-11-08); wishlist todo |
+| F9 | Cart, coupons, checkout, Razorpay + COD rule | 🟡 Bag + checkout (UPI QR + screenshot, COD with consent) + admin Orders/verify built (2026-11-08); coupons + Razorpay todo |
 | F10 | Admin: orders, status, settings, coupons, reviews, dashboard | — |
 | F11 | Reviews + WhatsApp button | 🟡 Reviews moderation + testimonials admin built (2026-11-08); customer "write a review" waits for F8, WhatsApp button todo |
 | F12 | PWA, SEO, policy pages, performance, launch | — |
@@ -24,14 +24,7 @@ We build one feature at a time: build → self-test → hand to the user to test
 - F1–F4 are done. F5 is built: offline tests pass, and the browser test passed 20/21 checks against the real DB before the freeze bug got in the way.
 - R2 is still not configured (`S3_*` values in `.env` are placeholders), so product images can only be added by URL.
 
-**🔴 Open issue: pages that query the DB sometimes freeze (fix this first)**
-- Symptom: a DB-backed page (`/admin`, `/admin/products`, a server action) streams its shell, then never finishes. Pages without DB work load fine.
-- It happened mostly right after `next start`, but by the end it also happened on a warm server. It never happens in plain Node outside Next (30/30 parallel query rounds fine).
-- Already fixed along the way: postgres.js opened sockets inside page renders, and Next 16 (Cache Components) interrupts sync I/O there (`crypto.randomBytes` for the SCRAM nonce, `Date`). Connections died mid-handshake. Sockets are now opened in a boot-time async scope (`src/lib/db/socket.ts` + `src/instrumentation.ts`), and DB traffic now uses TLS (`DB_SSL`, default prefer). After this change the DB exchanges complete, but the page stream still stalls (unresolved Suspense boundary `P:` for the page content).
-- Next suspects: Next's patched `setImmediate` / `process.nextTick` (`node_modules/next/dist/server/node-environment-extensions/fast-set-immediate.external.js`) interacting with DB results that resolve outside the render, or the PPR runtime prerender of admin pages. Try running DB work through `connection()` first, or giving admin pages `ensureStatic = false` / no PPR.
-- Repro: fresh `next start -p 3123`, log in, `fetch` `/admin/products` with the cookie and read the stream (it stops ~6 KB short).
-- `e2e/warmup.mjs` runs first in `npm run e2e` as a stopgap.
-- Don't patch `node_modules` to debug (auth code edits got blocked, and they're risky). Instrument our own wrapper in `socket.ts` instead.
+**✅ Resolved: DB-backed pages freezing.** Cause: postgres.js pipelined queries through Supabase's transaction pooler. Fixed by switching to `pg` (see `src/lib/db/index.ts`).
 
 **How to verify (every feature)**
 1. `npm run lint`, `npx tsc --noEmit`, `npm test` (now also `test:product`) and `npm run build`.
@@ -151,5 +144,50 @@ We build one feature at a time: build → self-test → hand to the user to test
 - Admin: a grid of 9:16 tiles. **Add videos** takes several files at once (or drag them onto the grid); each one uploads straight to R2 (`reels/` folder) with an auto-captured poster frame and becomes a post right away. Drag to reorder, switch to show/hide, and tap a tile to edit the caption, replace the video or delete it. Saves and deletes go through the outbox, so they feel instant.
 - Upload rules: MP4, WebM or MOV up to 200 MB. **Landscape or square videos are rejected**, and a vertical video that isn't exactly 9:16 gets a "will be cropped slightly" warning. If the browser can't read the video's size (some HEVC .mov files on desktop Chrome), it's accepted without the check.
 - Storefront: `src/components/home/feed.tsx` (cached, tag `feed`; hidden when there are no videos) → horizontal strip of 9:16 cards. Tapping a card (or "Watch all") opens `feed-viewer.tsx`, a full-screen vertical swipe player: one video per screen, it plays and loops while visible, sound on (falls back to muted if the browser blocks it), mute button, tap to pause, progress bar, ↑/↓ keys and buttons on desktop. **The phone's back button closes the player.** Only the visible video and its neighbours load.
+- **Bulk import:** `npm run feed:import -- <folder>` converts each video to a web-ready MP4 (H.264, 1080×1920, 30 fps, ≤5 Mbps, centre-cropped to 9:16), uses the first frame as a WebP thumbnail, uploads both to R2 `reels/` and puts them at the front of the feed in file-name order. It needs ffmpeg. On 2026-11-08 the client's reel1–reel5 were imported this way (iPhone HEVC .MOV, 23–121 MB, came out at 9–34 MB; reel1 was landscape and was centre-cropped).
 - Not done: `reels.product_id` ("shop this look") is unused until product pages (`/product/[slug]`) exist.
 - e2e: `e2e/feed.mjs` (27 checks: upload, landscape rejection, caption, player on desktop and mobile, back button, hide, delete incl. storage cleanup). It needs `E2E_VERTICAL` and `E2E_LANDSCAPE` set to **WebM** clips (Playwright's Chromium can't decode H.264) and launches Chromium with `--disable-web-security`, because the R2 CORS policy doesn't list :3123.
+
+## Customer accounts (built 2026-11-08)
+- **Sign up** at `/account/signup`: full name, mobile (Indian 10-digit, unique; "+91 98765 43210" etc. accepted, stored as 10 digits) and a **4-digit PIN** (+ confirm). **Sign in** at `/account/login`: mobile + PIN. Rules shared in `src/lib/validation/customer.ts`; auth in `src/lib/auth/core.ts` (`registerCustomer`, `changePassword`, `resetPassword`, `deleteUserSessions`).
+- **Security:** PINs are scrypt-hashed like admin passwords. Limits: 5 wrong PINs per account per 15 min, **15 per account per day** (a 4-digit PIN has only 10,000 options), 60 per IP per 15 min (loose on purpose: Indian carriers share IPs via CGNAT), 10 new accounts per IP per hour. Blocked accounts can't sign in and have no valid session. `?next=` only allows same-site paths.
+- **No OTP** (cost/DLT decision pending with the client). "Forgot PIN" → Contact; the store resets the PIN in Admin → Customers.
+- **Account pages** (`/account`, `/account/orders/[orderNumber]`, `/account/profile`): greeting + stats, order history, order detail with a step tracker (placed → confirmed → packed → shipped → delivered, or cancelled) built from `order_status_history`, store notes, courier + tracking no. + "Track shipment" link, items, totals, address, payment. Profile: change name, change PIN (signs out other devices). The proxy sends signed-out visitors to sign-in.
+- **Admin → Customers** (`/admin/customers`): stats, search by name/mobile, sort (newest, top spenders, most orders, recently active), blocked filter. Customer page: orders, spend (cancelled excluded), avg order, last sign-in, signed-in devices, addresses (saved + used on orders), reviews/wishlist counts, Call/WhatsApp, and manage: name, private note, block (signs out at once), reset PIN, delete (orders kept as guest orders).
+- **Admin order page** `/admin/orders/[id]` (reached from a customer): change status with an optional note for the customer (COD → Delivered also marks Paid), courier/tracking number/link, history. The Orders list page itself is still the F10 placeholder.
+- Schema (migration 0006, applied): `users.is_blocked`, `last_login_at`, `admin_note`; `orders.courier_name`, `tracking_number`, `tracking_url`.
+- **Speed:** account pages are private-cached in the browser (`requireCustomerView`, cacheLife profile `account`, 5 min) and prefetched, so tab switches take ~50–100 ms with no skeleton; sign in/out/up and profile saves wipe that cache (`revalidatePath("/account", "layout")`). Tab links carry `transitionTypes={["tab"]}` so the store's page fade is skipped for them. My Orders loads in 2 DB round trips (session incl. `createdAt`, orders with item summary in one query). In `next dev` there's no prefetching, so tabs there always fetch.
+- e2e: `e2e/customers.mjs` (incl. tab-switch speed and "next person on the same browser sees only their own account"; sign-up/in rules, lockout, history isolation, tracking, PIN change/reset, block, delete, admin status/tracking). It seeds orders `E2E-*` for phones `6999…` and clears the localhost rate-limit counters.
+- Known: a revoked session (PIN reset/block) is detected while the page streams; the redirect to sign-in cancels the page's view transition and Chromium logs a harmless "Transition was skipped". `e2e/admin-cache.mjs` is stale (looks for `/shop/<slug>` text no longer on the Categories list).
+- Still to do in F8: wishlist, saved addresses (checkout F9 should save them), customer "write a review".
+
+## Bag + checkout (built 2026-11-08)
+- **Bag** lives in the browser (`src/components/cart/cart-store.ts`, localStorage `apna-bag-v1`, synced across tabs): only ids + qty; names/prices/stock always come from the server (`quoteCart` → `priceCart` in `src/lib/data/checkout.ts`). Max 10 per line, 30 lines. "Add to bag" on product cards (`add-to-bag.tsx`); products with variants open an option picker (no live product has variants yet, so the picker is untested in e2e). Badge on header + bottom bar. `/cart`: qty stepper capped by stock, remove, sold-out / "only N left" flags block checkout.
+- **Checkout** `/checkout` (guests allowed; signed-in customers get name/phone/last address pre-filled and the address saved to `addresses`). Payment:
+  - **UPI**: shows the QR image the admin uploads (Settings → Payments & delivery), the exact amount, optional UPI ID (copy + "Open UPI app" deep link on touch devices). Customer uploads a screenshot (presigned to R2 `payments/`, 30/hr per IP) + optional UTR. Order: `payment_method=upi`, `payment_status=pending`.
+  - **COD**: consent checkbox → `cod_consent_at`; blocked below the COD minimum or when COD is off.
+- `placeOrder` (`src/app/(store)/checkout/actions.ts`): validates, re-prices with row locks (`for update`), reserves stock (products + variants), order number `AS-######`, private `access_token`, history "placed". 20 orders/hr per IP. Cancelling an order returns stock (un-cancelling takes it again).
+- **Order page by private link** `/order/<token>` (checkout lands on `?placed=1`): tracker, payment notice (verifying / received / rejected + re-upload). Shared `OrderView` (`src/components/account/order-view.tsx`) is also used by My Orders.
+- **Admin**: `/admin/orders` list with tabs (Verify payment, New, In progress, Delivered, Cancelled, All) + search (order no, name, mobile, UTR). Order page: screenshot (tap to enlarge), UTR, **Approve** (→ Paid + Confirmed, "Payment received" note) / **Reject** with reason (customer sees it and re-uploads). Dashboard shows "N payments to verify". Settings → Payments & delivery: QR, UPI ID, payee name, COD on/off + minimum, shipping fee, free-shipping threshold (settings key `payments`; falls back to the old seeded keys).
+- Schema (migration 0007, applied): `payment_method` + `upi`; `orders.access_token` (unique), `payment_proof_url`, `payment_reference`, `payment_note`, `payment_verified_at`, `cod_consent_at`.
+- e2e: `e2e/checkout.mjs` (43 checks, phones `69996…`): restores stock, the `payments` setting and deletes test screenshots from R2; clears `order:::1` / `proof:::1` rate-limit counters. Needs `--disable-web-security` (R2 CORS) — already in the script.
+- **Charges** (Settings → Payments & delivery, 2026-11-08): **COD charge** (flat ₹, added to the total only when COD is picked; the COD minimum is checked before it) and **return charge** (flat ₹, shown at checkout + on the order, not added to the total). No UPI charge (user's decision). Migration 0008: `orders.cod_fee` (int, default 0), `orders.return_fee` (nullable). `computeTotals(subtotal, settings, method)`.
+- Product page + cards: "Add to bag" turns into "Remove from bag" once that piece is in the bag (toast with Undo).
+- Not done: coupons, Razorpay, order notifications (WhatsApp/SMS to the store on a new order).
+
+## Security hardening (2026-11-09)
+- **Admin password rotated** (the old 6-digit one was in the public GitHub history). Admin passwords must be 12+ characters and not easy to guess (`scripts/create-admin.mts`). The real one lives only in `.env` (`E2E_PASS`) and the owner's password manager. Never put it in tests or docs.
+- **Sign-in limits** (`src/lib/auth/core.ts`) are counted atomically *before* the password/PIN check (`hit()`), so parallel requests can't slip past:
+  - customers (4-digit PIN): 5 per account per 15 min, 15 per account per day, 20 failed per network per 15 min, 100 per network per day;
+  - admin: 5 per username *per network* per 15 min (nobody can lock the admin out from elsewhere), 20 per network;
+  - sign-up: 15 attempts per network per hour; change PIN: 5 per 15 min.
+- **Separate login scopes:** the customer form only matches customers by phone, the admin form only matches admins by username. (Before, the admin form told you when a customer's PIN was right.)
+- **Hashing cap** (`src/lib/auth/password.ts`): max 2 scrypt hashes at once per instance, 24 queued, the rest get "try again in a moment" (each hash is 128 MiB).
+- **Trusted client IP** (`src/lib/auth/request.ts`): Vercel `x-real-ip`, Netlify `x-nf-client-connection-ip`, otherwise `CLIENT_IP_HEADER` (set it on the VPS behind nginx). Never the visitor-supplied `x-forwarded-for` in production.
+- **Forgot PIN** answers the same for unknown numbers. Profile actions refuse non-customer sessions.
+- **Checkout:** 10 orders per network per hour, max 3 unconfirmed orders per phone/account, 10 screenshot uploads per network per hour. Review uploads need a shipped/delivered order.
+- **Headers** (`next.config.ts`): HSTS, frame-ancestors 'none' / X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, no X-Powered-By; `noindex` on /admin, /account, /order. Images only from the exact `S3_PUBLIC_URL` host.
+- **Admin sessions** last 7 days (customers 30).
+- `/api/health` returns a bare "ok" unless `x-health-token: $HEALTH_TOKEN` is sent.
+- Still open: make the GitHub repo private; Turnstile on sign-in/sign-up; Supabase private channels for realtime; DB TLS certificate verification; restore tests to git + CI.
+

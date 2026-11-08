@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { BadgeCheck, Pin } from "lucide-react";
 import { getProductReviews, type StoreReview } from "@/lib/data/reviews";
 import { Stars } from "./stars";
 import { ReviewMediaStrip } from "./media-viewer";
+import { WriteReviewLink } from "./write-review-link";
 
 /**
  * Storefront reviews block for a product page: rating summary, every
@@ -21,6 +23,9 @@ export async function ProductReviews({ productId }: { productId: string }) {
         <h2 id="reviews-title" className="mt-3 font-serif text-3xl font-light text-ivory lg:text-4xl">
           What our <em className="text-gold">clients</em> say
         </h2>
+        <Suspense fallback={null}>
+          <WriteReviewLink productId={productId} />
+        </Suspense>
       </div>
 
       {summary.count === 0 ? (

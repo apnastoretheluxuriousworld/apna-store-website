@@ -5,6 +5,7 @@
 import {
   DeleteObjectCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -43,7 +44,7 @@ export const uploadKinds = {
   },
 } as const;
 
-export const uploadFolders = ["products", "categories", "hero", "reels", "testimonials", "reviews"] as const;
+export const uploadFolders = ["products", "categories", "hero", "reels", "testimonials", "reviews", "payments"] as const;
 export type UploadFolder = (typeof uploadFolders)[number];
 
 export class UploadRejected extends Error {}
@@ -120,4 +121,38 @@ export async function deleteObject(client: S3Client, cfg: StorageConfig, key: st
 
 export async function pingBucket(client: S3Client, cfg: StorageConfig) {
   await client.send(new HeadBucketCommand({ Bucket: cfg.bucket }));
+}
+
+export type BucketUsage = {
+  totalBytes: number;
+  objects: number;
+  /** Bytes per top-level folder (products, reels, reviews…), biggest first. */
+  folders: { folder: string; bytes: number; objects: number }[];
+};
+
+/**
+ * Adds up every file in the bucket. One list call per 1,000 files (R2 bills
+ * these as Class A operations — 1M a month are free), so callers cache it.
+ */
+export async function bucketUsage(client: S3Client, cfg: StorageConfig): Promise<BucketUsage> {
+  const byFolder = new Map<string, { bytes: number; objects: number }>();
+  let totalBytes = 0;
+  let objects = 0;
+  let token: string | undefined;
+  do {
+    const page = await client.send(new ListObjectsV2Command({ Bucket: cfg.bucket, ContinuationToken: token }));
+    for (const o of page.Contents ?? []) {
+      const size = o.Size ?? 0;
+      const folder = o.Key?.includes("/") ? o.Key.split("/")[0] : "other";
+      const f = byFolder.get(folder) ?? { bytes: 0, objects: 0 };
+      f.bytes += size;
+      f.objects += 1;
+      byFolder.set(folder, f);
+      totalBytes += size;
+      objects += 1;
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  const folders = [...byFolder].map(([folder, f]) => ({ folder, ...f })).sort((a, b) => b.bytes - a.bytes);
+  return { totalBytes, objects, folders };
 }

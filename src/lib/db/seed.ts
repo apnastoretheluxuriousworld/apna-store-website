@@ -6,8 +6,9 @@
  *
  * Takes a Drizzle instance so it runs from the CLI script and from tests.
  */
-import { eq as sqlEq } from "drizzle-orm";
+import { eq as sqlEq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { VIDEO_URL_PG_REGEX } from "../media";
 import * as s from "./schema";
 
 type Field = {
@@ -209,5 +210,60 @@ export async function seed<T extends PgQueryResultHKT>(db: PgDatabase<T, typeof 
     .returning({ key: s.settings.key });
   report.settings = settingRows.length;
 
-  return report;
+  const heroSlides = await seedCollectionHeroSlides(db);
+
+  return { ...report, heroSlides };
+}
+
+/** settings flag: the starter collection slides were added once; never re-add them. */
+const HERO_SEEDED = "hero_collections_seeded";
+
+/**
+ * One-time: one hero banner per active collection (cover = the collection's
+ * image, else its first live product photo), after any existing banners. From
+ * then on they're ordinary banners the admin edits, hides, reorders or deletes.
+ * Does nothing until at least one collection has an image (run again after
+ * `npm run db:import-catalog`), and never again once it has added slides.
+ */
+export async function seedCollectionHeroSlides<T extends PgQueryResultHKT>(db: PgDatabase<T, typeof s>) {
+  const [done] = await db.select().from(s.settings).where(sqlEq(s.settings.key, HERO_SEEDED));
+  if (done) return 0;
+
+  const rows = await db
+    .select({
+      name: s.categories.name,
+      slug: s.categories.slug,
+      description: s.categories.description,
+      image: sql<string | null>`coalesce(nullif(${s.categories.imageUrl}, ''), (
+        select i."url" from "product_images" i
+        join "products" p on p."id" = i."product_id"
+        where p."category_id" = "categories"."id" and p."status" = 'active'
+          and i."url" !~* ${VIDEO_URL_PG_REGEX}
+        order by p."is_featured" desc, p."created_at" desc, i."sort_order"
+        limit 1
+      ))`,
+    })
+    .from(s.categories)
+    .where(sqlEq(s.categories.isActive, true))
+    .orderBy(s.categories.sortOrder, s.categories.name);
+  const withImage = rows.filter((r): r is typeof r & { image: string } => !!r.image);
+  if (!withImage.length) return 0;
+
+  const [{ next }] = await db
+    .select({ next: sql<number>`coalesce(max(${s.heroSlides.sortOrder}) + 1, 0)::int` })
+    .from(s.heroSlides);
+  await db.insert(s.heroSlides).values(
+    withImage.map((c, i) => ({
+      mediaType: "image" as const,
+      mediaUrl: c.image,
+      title: "",
+      highlight: c.name,
+      subtitle: c.description,
+      ctaLabel: `Shop ${c.name}`,
+      ctaHref: `/shop/${c.slug}`,
+      sortOrder: next + i,
+    })),
+  );
+  await db.insert(s.settings).values({ key: HERO_SEEDED, value: true }).onConflictDoNothing({ target: s.settings.key });
+  return withImage.length;
 }

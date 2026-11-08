@@ -26,7 +26,7 @@ export function testimonialMedia(t: Pick<Row, "mediaType" | "mediaUrl" | "poster
 export async function getStoreTestimonials(): Promise<StoreTestimonial[]> {
   "use cache";
   cacheTag(TESTIMONIALS_TAG);
-  cacheLife("hours");
+  cacheLife("store");
   const rows = await db()
     .select()
     .from(s.testimonials)

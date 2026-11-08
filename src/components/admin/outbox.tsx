@@ -22,6 +22,10 @@ import { AlertTriangle, RotateCw, X } from "lucide-react";
 import { deleteProduct, saveProduct } from "@/app/admin/(panel)/products/actions";
 import { deleteCategory, saveCategory } from "@/app/admin/(panel)/categories/actions";
 import { deleteFeedVideo, saveFeedVideo } from "@/app/admin/(panel)/feed/actions";
+import { deleteHeroSlide, saveHeroSlide } from "@/app/admin/(panel)/hero/actions";
+import { savePaymentSettings, saveStoreInfo } from "@/app/admin/(panel)/settings/actions";
+import { deleteCoupon, saveCoupon } from "@/app/admin/(panel)/coupons/actions";
+import { deleteInfluencer, saveInfluencer } from "@/app/admin/(panel)/influencers/actions";
 import { cn } from "@/lib/utils";
 
 type Result = { ok: boolean; error?: string };
@@ -33,6 +37,14 @@ const runners = {
   "category.delete": (p: unknown) => deleteCategory(p as string),
   "feed.save": (p: unknown) => saveFeedVideo(p),
   "feed.delete": (p: unknown) => deleteFeedVideo(p),
+  "hero.save": (p: unknown) => saveHeroSlide(p),
+  "hero.delete": (p: unknown) => deleteHeroSlide(p),
+  "settings.store": (p: unknown) => saveStoreInfo(p),
+  "settings.payments": (p: unknown) => savePaymentSettings(p),
+  "coupon.save": (p: unknown) => saveCoupon(p),
+  "coupon.delete": (p: unknown) => deleteCoupon(p),
+  "influencer.save": (p: unknown) => saveInfluencer(p),
+  "influencer.delete": (p: unknown) => deleteInfluencer(p),
 } satisfies Record<string, (payload: unknown) => Promise<Result>>;
 
 export type JobKind = keyof typeof runners;

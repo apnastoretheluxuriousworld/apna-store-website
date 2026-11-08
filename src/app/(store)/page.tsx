@@ -1,23 +1,36 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Feed } from "@/components/home/feed";
 import { Hero } from "@/components/home/hero";
 import { Testimonials } from "@/components/home/testimonials";
 import { SectionHeader } from "@/components/ui/section-header";
+import { CollectionRow } from "@/components/product/collection-row";
 import { ProductCard } from "@/components/product/product-card";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
-import { getStoreCategories } from "@/lib/data/categories";
-import { getFeaturedProducts } from "@/lib/data/products";
+import { getHomeCollectionSlugs, getStoreCategories } from "@/lib/data/categories";
+import { getHeroSlides } from "@/lib/data/hero";
+import { getCollectionRowProducts, getFeaturedProducts } from "@/lib/data/products";
 
 export default async function HomePage() {
-  const [categories, bestSellers] = await Promise.all([
+  const [heroSlides, categories, bestSellers, homeSlugs] = await Promise.all([
+    getHeroSlides(),
     getStoreCategories(),
     getFeaturedProducts(),
+    getHomeCollectionSlugs(),
   ]);
+  // Collections picked in Admin → Categories (up to 3), each as a small-card strip after Best Sellers.
+  const topCollections = (
+    await Promise.all(
+      categories
+        .filter((c) => homeSlugs.includes(c.slug))
+        .map(async (c) => ({ ...c, products: await getCollectionRowProducts(c.slug) })),
+    )
+  ).filter((c) => c.products.length > 0);
   return (
     <>
-      {/* 1. Hero carousel (admin-managed in F7) */}
-      <Hero />
+      {/* 1. Hero carousel — Admin → Hero banners */}
+      <Hero slides={heroSlides} />
 
       {/* 2. Our Feed — vertical 9:16 videos (Admin → Feed) */}
       <Feed />
@@ -34,12 +47,22 @@ export default async function HomePage() {
                 href={`/shop/${c.slug}`}
                 className="group flex w-16 flex-col items-center gap-2 lg:w-32"
               >
-                <span className="grid size-16 place-items-center rounded-full border border-gold-500/50 bg-ink-800/60 transition-all duration-500 group-hover:border-gold-300 group-hover:shadow-[0_0_30px_-6px_rgba(212,175,55,0.6)] lg:size-28">
-                  <CategoryIcon
-                    slug={c.slug}
-                    className="size-6 text-gold-400 transition-transform duration-500 group-hover:scale-110 lg:size-9"
-                    strokeWidth={1}
-                  />
+                <span className="relative grid size-16 place-items-center overflow-hidden rounded-full border border-gold-500/50 bg-ink-800/60 transition-all duration-500 group-hover:border-gold-300 group-hover:shadow-[0_0_30px_-6px_rgba(212,175,55,0.6)] lg:size-28">
+                  {c.imageUrl ? (
+                    <Image
+                      src={c.imageUrl}
+                      alt=""
+                      fill
+                      sizes="(min-width: 1024px) 112px, 64px"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  ) : (
+                    <CategoryIcon
+                      slug={c.slug}
+                      className="size-6 text-gold-400 transition-transform duration-500 group-hover:scale-110 lg:size-9"
+                      strokeWidth={1}
+                    />
+                  )}
                 </span>
                 <span className="text-center text-[0.7rem] text-ivory/80 group-hover:text-gold-300 lg:text-sm">
                   {c.name}
@@ -56,7 +79,7 @@ export default async function HomePage() {
           <Reveal>
             <SectionHeader title="Best Sellers" href="/shop" />
           </Reveal>
-          <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
             {bestSellers.map((p) => (
               <RevealItem key={p.id}>
                 <ProductCard product={p} />
@@ -66,7 +89,12 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* 5. Testimonials (Admin → Testimonials) */}
+      {/* 5. Homepage collections (Admin → Categories, up to 3) — small cards, horizontal scroll */}
+      {topCollections.map((c) => (
+        <CollectionRow key={c.slug} name={c.name} slug={c.slug} products={c.products} />
+      ))}
+
+      {/* 6. Testimonials (Admin → Testimonials) */}
       <Testimonials />
     </>
   );

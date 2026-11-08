@@ -21,7 +21,8 @@ import type { CategoryWithFields } from "@/lib/data/products";
 import { formatPrice } from "@/lib/format";
 import { enqueue, pendingSave } from "@/components/admin/outbox";
 import { coverOf } from "@/lib/media";
-import { cn } from "@/lib/utils";
+import { cn, trimLeadingZeros } from "@/lib/utils";
+import { ProductPreview } from "./product-preview";
 
 export type ProductFormValues = {
   id?: string;
@@ -193,26 +194,31 @@ export function ProductForm({
           </Card>
 
           <Card>
-            <SectionTitle
-              title={category ? `${category.name} details` : "Category details"}
-              note={
-                category ? (
-                  <Link href={`/admin/categories/${category.id}`} className="text-gold-400 hover:underline">
-                    Edit fields
-                  </Link>
-                ) : (
-                  "Choose a category to see its fields."
-                )
-              }
-            />
+            {/* Category first: picking one shows its fields right below */}
+            <Field label="Category" error={errors.categoryId?.message} htmlFor="categoryId">
+              <select id="categoryId" className={selectClass} aria-invalid={!!errors.categoryId} {...register("categoryId")}>
+                <option value="">Choose…</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.isActive ? "" : " (hidden)"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {category && (
+              <Link href={`/admin/categories/${category.id}`} className="mt-1.5 inline-block text-xs text-gold-400 hover:underline">
+                Edit {category.name} fields
+              </Link>
+            )}
             {category && category.fields.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {category.fields.map((f) => (
                   <AttributeInput key={`${category.id}-${f.key}`} field={f} control={control} register={register} error={errors.attributes?.[f.key]?.message} />
                 ))}
               </div>
             )}
-            {category && category.fields.length === 0 && <p className="text-sm text-mute">This category has no fields yet.</p>}
+            {category && category.fields.length === 0 && <p className="mt-3 text-sm text-mute">This category has no fields yet.</p>}
 
             {/* Product-only fields */}
             <div className="mt-6 border-t border-ink-600/60 pt-5">
@@ -301,20 +307,6 @@ export function ProductForm({
             </div>
           </Card>
 
-          <Card>
-            <Field label="Category" error={errors.categoryId?.message} htmlFor="categoryId">
-              <select id="categoryId" className={selectClass} aria-invalid={!!errors.categoryId} {...register("categoryId")}>
-                <option value="">Choose…</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.isActive ? "" : " (hidden)"}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </Card>
-
           <Card className="space-y-4">
             <Field label="Price (₹)" error={errors.price?.message} htmlFor="price">
               <RupeeInput id="price" invalid={!!errors.price} {...register("price", num)} />
@@ -342,6 +334,10 @@ export function ProductForm({
                 render={({ field }) => <Switch checked={field.value} onChange={field.onChange} label="Track stock" />}
               />
             </div>
+          </Card>
+
+          <Card className="lg:sticky lg:top-5">
+            <ProductPreview control={control} categoryName={category?.name} />
           </Card>
         </div>
       </div>
@@ -430,6 +426,7 @@ function RupeeInput({ invalid, className, ...props }: React.InputHTMLAttributes<
         inputMode="numeric"
         min={0}
         step={1}
+        onInput={trimLeadingZeros}
         aria-invalid={invalid}
         className={cn(inputClass, "pl-8 tabular-nums", className)}
         {...props}
@@ -473,7 +470,7 @@ function StockField({ control, register, error }: { control: Ctl; register: Regi
   }
   return (
     <Field label="Stock" error={error} htmlFor="stock">
-      <input id="stock" type="number" inputMode="numeric" min={0} step={1} className={cn(inputClass, "tabular-nums")} aria-invalid={!!error} {...register("stock", num)} />
+      <input id="stock" type="number" inputMode="numeric" min={0} step={1} onInput={trimLeadingZeros} className={cn(inputClass, "tabular-nums")} aria-invalid={!!error} {...register("stock", num)} />
     </Field>
   );
 }
@@ -522,6 +519,7 @@ function AttributeInput({
           <input
             id={id}
             inputMode={f.type === "number" ? "decimal" : undefined}
+            onInput={f.type === "number" ? trimLeadingZeros : undefined}
             className={cn(inputClass, f.unit && "pr-12", f.type === "number" && "tabular-nums")}
             aria-invalid={!!error}
             {...register(name)}
@@ -584,6 +582,7 @@ function VariantsCard({
                     type="number"
                     inputMode="numeric"
                     min={0}
+                    onInput={trimLeadingZeros}
                     className={cn(inputClass, "h-10 tabular-nums")}
                     placeholder={Number.isFinite(price) ? String(price) : "Same"}
                     aria-label="Variant price"
@@ -597,6 +596,7 @@ function VariantsCard({
                     type="number"
                     inputMode="numeric"
                     min={0}
+                    onInput={trimLeadingZeros}
                     className={cn(inputClass, "h-10 tabular-nums")}
                     aria-label="Variant stock"
                     aria-invalid={!!errors?.[i]?.stock}

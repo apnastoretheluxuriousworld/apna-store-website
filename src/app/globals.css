@@ -21,8 +21,9 @@
   --color-stone: #a39e93;
   --color-mute: #6f6a61;
 
-  --font-serif: var(--font-cormorant), "Times New Roman", serif;
-  --font-sans: var(--font-montserrat), system-ui, sans-serif;
+  /* Numbers (digits, ₹, % , . /) use Inter — see the note in app/layout.tsx. */
+  --font-serif: var(--font-num-serif), var(--font-num-rupee-serif), var(--font-cormorant), "Times New Roman", serif;
+  --font-sans: var(--font-num), var(--font-num-rupee), var(--font-montserrat), system-ui, sans-serif;
 
   --container-site: 2000px;
 
@@ -151,5 +152,91 @@ body {
   ::view-transition-old(.page),
   ::view-transition-new(.page) {
     animation: none;
+  }
+}
+
+/* ───────────── Brand loader (components/ui/brand-loader.tsx) ───────────── */
+.brand-loader {
+  /* Delay before showing, so fast navigations never flash the loader. */
+  animation: brand-loader-in 700ms var(--ease-luxe) 220ms both;
+}
+.brand-loader-glow {
+  animation: brand-loader-breathe 3.2s ease-in-out infinite;
+}
+.brand-loader-orbit {
+  animation: brand-loader-spin 18s linear infinite;
+  transform-origin: center;
+}
+.brand-loader-trace {
+  stroke-dasharray: 16 84;
+  animation: brand-loader-trace 2.6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(245, 215, 122, 0.9));
+}
+.brand-loader-trace--b {
+  stroke-dasharray: 6 94;
+  animation-delay: -1.3s;
+  opacity: 0.7;
+}
+.brand-loader-stone {
+  animation: brand-loader-float 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 6px 18px rgba(212, 175, 55, 0.25));
+}
+.brand-loader-shine {
+  -webkit-mask: url("/brand/logo-emblem.png") center / 100% 100% no-repeat;
+  mask: url("/brand/logo-emblem.png") center / 100% 100% no-repeat;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 250, 225, 0.95) 50%,
+    transparent 65%
+  );
+  background-size: 300% 100%;
+  mix-blend-mode: screen;
+  animation: brand-loader-shine 2.6s var(--ease-luxe) infinite;
+}
+.brand-loader-glint {
+  opacity: 0;
+  animation: brand-loader-glint 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgba(248, 231, 168, 0.9));
+}
+
+@keyframes brand-loader-in {
+  from { opacity: 0; transform: scale(0.96); filter: blur(6px); }
+}
+@keyframes brand-loader-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes brand-loader-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes brand-loader-trace {
+  to { stroke-dashoffset: -100; }
+}
+@keyframes brand-loader-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes brand-loader-shine {
+  0% { background-position: 150% 0; }
+  70%, 100% { background-position: -50% 0; }
+}
+@keyframes brand-loader-glint {
+  0%, 70%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(45deg); }
+  90% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(90deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader,
+  .brand-loader-glow,
+  .brand-loader-orbit,
+  .brand-loader-stone,
+  .brand-loader-shine,
+  .brand-loader-glint {
+    animation: none;
+  }
+  .brand-loader-trace {
+    animation-duration: 6s;
   }
 }

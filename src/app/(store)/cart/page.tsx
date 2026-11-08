@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/ui/page-placeholder";
+import { CartView } from "@/components/cart/cart-view";
 
-export const metadata: Metadata = { title: "Shopping Bag" };
+export const metadata: Metadata = { title: "Cart", robots: { index: false } };
 
-export default function Page() {
+export default function CartPage() {
   return (
-    <PagePlaceholder
-      eyebrow="Your Bag"
-      title="Shopping Bag"
-      description="Review your selections and check out securely with Razorpay or cash on delivery."
-      feature="F9"
-    />
+    <div className="mx-auto max-w-site px-4 pt-20 pb-16 lg:px-12 lg:pt-32">
+      <h1 className="sr-only">Cart</h1>
+      <CartView />
+    </div>
   );
 }

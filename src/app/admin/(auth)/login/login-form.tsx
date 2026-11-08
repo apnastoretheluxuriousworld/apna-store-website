@@ -17,7 +17,7 @@ export function LoginForm() {
 
       <label className="block">
         <span className="mb-1.5 block text-[0.65rem] uppercase tracking-[0.2em] text-stone">
-          Username or phone
+          Username
         </span>
         <span className="relative block">
           <User className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gold-500/70" strokeWidth={1.5} />
@@ -29,7 +29,7 @@ export function LoginForm() {
             spellCheck={false}
             required
             className="h-12 w-full rounded-lg border border-ink-600 bg-ink-900 pr-4 pl-10 text-sm text-ivory placeholder:text-mute focus:border-gold-500/60 focus:ring-2 focus:ring-gold-500/15 focus:outline-none"
-            placeholder="apnastore"
+            placeholder="Admin username"
           />
         </span>
       </label>

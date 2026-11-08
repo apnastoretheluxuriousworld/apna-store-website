@@ -1,0 +1,1 @@
+ALTER TABLE "coupons" DROP COLUMN "used_count";

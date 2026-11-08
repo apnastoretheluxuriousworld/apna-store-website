@@ -10,9 +10,46 @@ const R = 8;
 const P = 1;
 const KEY_LEN = 64;
 
+/**
+ * Each hash takes 128 MiB of memory and one of Node's 4 libuv threads for
+ * ~100–300 ms. Without a cap, a burst of sign-in requests (even with wrong
+ * PINs) would exhaust memory and stall everything else that uses those
+ * threads (DNS for DB connects, file and crypto work). So at most
+ * MAX_ACTIVE hashes run at once per server instance; a short queue waits, and
+ * beyond that requests are turned away with HashBusy.
+ */
+const MAX_ACTIVE = 2;
+const MAX_WAITING = 24;
+let active = 0;
+const waiting: (() => void)[] = [];
+
+/** Too many sign-ins at this moment; the caller shows "try again in a moment". */
+export class HashBusy extends Error {
+  constructor() {
+    super("Password hashing is busy");
+  }
+}
+
+async function withHashSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= MAX_ACTIVE) {
+    if (waiting.length >= MAX_WAITING) throw new HashBusy();
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  }
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    waiting.shift()?.();
+  }
+}
+
 function scrypt(password: string, salt: Buffer, keylen: number, opts: ScryptOptions) {
-  return new Promise<Buffer>((resolve, reject) =>
-    scryptCb(password, salt, keylen, opts, (err, key) => (err ? reject(err) : resolve(key))),
+  return withHashSlot(
+    () =>
+      new Promise<Buffer>((resolve, reject) =>
+        scryptCb(password, salt, keylen, opts, (err, key) => (err ? reject(err) : resolve(key))),
+      ),
   );
 }
 
@@ -47,4 +84,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
 export const DUMMY_HASH =
   "scrypt$17$8$1$AAAAAAAAAAAAAAAAAAAAAA==$" + Buffer.alloc(KEY_LEN).toString("base64");
 
+/** Customers sign in with a 4-digit PIN (validation/customer.ts). */
 export const PASSWORD_MIN_LENGTH = 4;
+
+/**
+ * Admin passwords: the admin account can see every customer's name, phone and
+ * address, so it gets a real password. Enforced when one is set (create-admin).
+ */
+export const ADMIN_PASSWORD_MIN_LENGTH = 12;

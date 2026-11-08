@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/ui/page-placeholder";
+import { SearchView } from "@/components/search/search-view";
+import { getStoreCategories } from "@/lib/data/categories";
 
-export const metadata: Metadata = { title: "Search" };
+export const metadata: Metadata = { title: "Search", description: "Find watches, perfumes, handbags and more at Apna Store." };
 
-export default function Page() {
+/** Static shell; results load in place from /api/search as the customer types (see SearchView). */
+export default async function SearchPage() {
+  const categories = await getStoreCategories();
   return (
-    <PagePlaceholder
-      eyebrow="Discover"
-      title="Search"
-      description="Find watches, fragrances, bags and more by name, brand or detail."
-      feature="F6"
-    />
+    <div className="mx-auto max-w-site px-4 pt-20 pb-16 lg:px-12 lg:pt-32">
+      <SearchView categories={categories} />
+    </div>
   );
 }

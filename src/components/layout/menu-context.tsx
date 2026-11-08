@@ -5,6 +5,10 @@ import { createContext, startTransition, Suspense, use, useCallback, useEffect, 
 
 type MenuState = {
   open: boolean;
+  /** True from opening until the closing animation has finished (the sheet is on screen). */
+  shown: boolean;
+  /** The menu's exit animation finished. */
+  onClosed: () => void;
   toggle: () => void;
   close: () => void;
 };
@@ -22,12 +26,23 @@ function CloseOnNavigate({ onNavigate }: { onNavigate: () => void }) {
 
 export function MenuProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // Stays true until the sheet's exit animation finishes (cleared by onClosed).
+  const [visible, setVisible] = useState(false);
   // Transitions: a tap right after load can't force still-hydrating
   // <Suspense> boundaries (bottom bar, etc.) into client rendering (React #412).
-  const toggle = useCallback(() => startTransition(() => setOpen((o) => !o)), []);
+  const toggle = useCallback(
+    () =>
+      startTransition(() => {
+        setOpen((o) => !o);
+        setVisible(true);
+      }),
+    [],
+  );
   const close = useCallback(() => startTransition(() => setOpen(false)), []);
+  const onClosed = useCallback(() => setVisible(false), []);
 
-  const value = useMemo(() => ({ open, toggle, close }), [open, toggle, close]);
+  const shown = open || visible;
+  const value = useMemo(() => ({ open, shown, onClosed, toggle, close }), [open, shown, onClosed, toggle, close]);
   return (
     <MenuContext value={value}>
       {/* Reading the URL must stream (Cache Components), so it sits in Suspense */}

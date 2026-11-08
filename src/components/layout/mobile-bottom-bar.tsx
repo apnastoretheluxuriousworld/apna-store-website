@@ -4,15 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { Suspense } from "react";
-import { Heart, Home, LayoutGrid, Menu, ShoppingBag, X } from "lucide-react";
+import { Home, LayoutGrid, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { BagBadge } from "@/components/cart/bag-badge";
 import { useMenu } from "./menu-context";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Home", href: "/", icon: Home },
   { label: "Shop", href: "/shop", icon: LayoutGrid },
-  { label: "Wishlist", href: "/wishlist", icon: Heart },
-  { label: "Bag", href: "/cart", icon: ShoppingBag },
+  { label: "Search", href: "/search", icon: Search },
+  { label: "Cart", href: "/cart", icon: ShoppingBag },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -27,11 +28,8 @@ const tabClass = (active: boolean) =>
 
 function Indicator() {
   return (
-    <motion.span
-      layoutId="tab-indicator"
-      className="bg-gold absolute top-0 h-0.5 w-8 rounded-full"
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
-    />
+    // Appears in place on the active tab (no sliding between tabs).
+    <span className="bg-gold absolute top-0 h-0.5 w-8 rounded-full" />
   );
 }
 
@@ -49,27 +47,31 @@ function BottomBarWithPath() {
 }
 
 function BottomBarView({ pathname }: { pathname: string }) {
-  const { open, toggle } = useMenu();
+  const { open, shown, toggle } = useMenu();
 
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-gold-500/15 bg-ink-950/90 backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 transform-gpu border-t border-gold-500/15 bg-ink-950/90 backdrop-blur-xl lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto grid h-(--bottom-bar-h) max-w-md grid-cols-5">
         {tabs.map(({ label, href, icon: Icon }) => {
-          const active = !open && isActive(pathname, href);
+          // Wait for the sheet to slide away before the underline returns to the page's tab.
+          const active = !shown && isActive(pathname, href);
           return (
             <li key={href}>
               <Link href={href} aria-current={active ? "page" : undefined} className={tabClass(active)}>
                 {active && <Indicator />}
-                <Icon
-                  className="size-[1.35rem]"
-                  strokeWidth={active ? 1.5 : 1.25}
-                  fill={active ? "currentColor" : "none"}
-                  fillOpacity={active ? 0.9 : 0}
-                />
+                <span className="relative">
+                  <Icon
+                    className="size-[1.35rem]"
+                    strokeWidth={active ? 1.5 : 1.25}
+                    fill={active ? "currentColor" : "none"}
+                    fillOpacity={active ? 0.9 : 0}
+                  />
+                  {href === "/cart" && <BagBadge />}
+                </span>
                 <span className="text-[0.625rem] tracking-wide">{label}</span>
               </Link>
             </li>

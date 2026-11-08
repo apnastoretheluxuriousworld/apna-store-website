@@ -6,6 +6,7 @@ import { discardUpload, getUploadUrl } from "@/app/admin/(panel)/upload-actions"
 import { MediaLightbox, MediaThumb } from "@/components/reviews/media-viewer";
 import type { ReviewMedia } from "@/lib/db/schema";
 import { mediaTypeFromUrl } from "@/lib/validation/review";
+import { capturePoster } from "@/lib/upload-client";
 import { putWithProgress, uploadImage, type UploadFolder } from "./image-upload";
 import { inputClass } from "./form";
 import { cn } from "@/lib/utils";
@@ -15,38 +16,6 @@ export const VIDEO_TYPES = "video/mp4,video/webm,video/quicktime";
 export const VIDEO_MAX_MB = 200;
 
 type Pending = { id: string; name: string; progress: number };
-
-/** Grab a still frame (~0.5 s in) as a WebP poster. Null if the browser can't decode the video. */
-async function capturePoster(file: File, at = 0.5): Promise<Blob | null> {
-  const src = URL.createObjectURL(file);
-  const video = document.createElement("video");
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.src = src;
-  const wait = (event: "loadeddata" | "seeked") =>
-    new Promise<void>((resolve, reject) => {
-      video.addEventListener(event, () => resolve(), { once: true });
-      video.addEventListener("error", () => reject(new Error("decode")), { once: true });
-    });
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000));
-  try {
-    await Promise.race([wait("loadeddata"), timeout]);
-    video.currentTime = Math.min(at, (video.duration || 1) / 2);
-    await Promise.race([wait("seeked"), timeout]);
-    const scale = Math.min(1, 1080 / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    if (!canvas.width || !canvas.height) return null;
-    canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", 0.82));
-  } catch {
-    return null;
-  } finally {
-    URL.revokeObjectURL(src);
-  }
-}
 
 async function uploadBlob(blob: Blob, folder: UploadFolder, onProgress: (pct: number) => void) {
   const res = await getUploadUrl({ folder, contentType: blob.type, size: blob.size });

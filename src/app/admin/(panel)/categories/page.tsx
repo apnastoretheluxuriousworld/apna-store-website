@@ -3,14 +3,14 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
 import { requireAdminView } from "@/lib/auth/session";
-import { listCategoriesForAdmin } from "@/lib/data/categories";
+import { getHomeCollectionIdsForAdmin, listCategoriesForAdmin } from "@/lib/data/categories";
 import { CategoryList } from "./category-list";
 
 export const metadata: Metadata = { title: "Categories" };
 
 export default async function CategoriesPage() {
   await requireAdminView();
-  const rows = await listCategoriesForAdmin();
+  const [rows, homeIds] = await Promise.all([listCategoriesForAdmin(), getHomeCollectionIdsForAdmin()]);
 
   return (
     <>
@@ -22,7 +22,7 @@ export default async function CategoriesPage() {
           </ButtonLink>
         }
       />
-      <CategoryList initial={rows} />
+      <CategoryList initial={rows} homeIds={homeIds} />
     </>
   );
 }

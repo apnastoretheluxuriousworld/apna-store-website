@@ -35,32 +35,39 @@ function useIsDesktop() {
 
 /** Mobile: compact bottom sheet. Desktop: full right-side sidebar. */
 export function MenuOverlay({ categories }: { categories: NavCategory[] }) {
-  const { open, close } = useMenu();
+  const { open, shown, close, onClosed } = useMenu();
   const lenis = useLenis();
   const desktop = useIsDesktop();
 
-  // Lock background scroll + close on Escape.
+  // Lock background scroll while the sheet is on screen. It unlocks only after
+  // the closing animation ends — unlocking mid-slide repaints the page and the
+  // fixed bottom bar, which shows as a flash.
   useEffect(() => {
-    if (!open) return;
+    if (!shown) return;
     lenis?.stop();
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prev;
+      lenis?.start();
+    };
+  }, [shown, lenis]);
+
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
-    return () => {
-      lenis?.start();
-      document.documentElement.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, lenis, close]);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onClosed}>
       {open && (
         <>
           <motion.div
             key="backdrop"
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

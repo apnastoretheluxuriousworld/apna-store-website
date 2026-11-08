@@ -8,9 +8,10 @@ import type { FeedVideo } from "@/lib/data/feed";
 import { cn } from "@/lib/utils";
 
 /**
- * Full-screen vertical video player: swipe/scroll up and down, one 9:16 video
- * per screen, the visible one plays (looping) and the rest pause.
- * Phone back button / Esc close it. ↑/↓ (or j/k) move, M mutes, tap pauses.
+ * Full-screen video player, one 9:16 video per screen; the visible one plays
+ * (looping) and the rest pause. Swipe up/down (native scroll) or left/right to
+ * change video — by touch or mouse. Phone back button / Esc close it.
+ * ↑/↓/←/→ (or j/k) move, M mutes, tap pauses.
  */
 export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; start: number; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -19,6 +20,8 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
   // Opening is a tap, so sound is usually allowed; if the browser refuses, we fall back to muted.
   const [muted, setMuted] = useState(false);
   const lenis = useLenis();
+  /** Gesture in progress: start point, and whether it has moved enough to be a swipe (not a tap). */
+  const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   // Close through history so the phone's back button/gesture closes the player instead of leaving the page.
   const closing = useRef(false);
@@ -88,7 +91,7 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
         close();
       }}
       onKeyDown={(e) => {
-        const step = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1 }[e.key];
+        const step = { ArrowDown: 1, ArrowRight: 1, j: 1, ArrowUp: -1, ArrowLeft: -1, k: -1 }[e.key];
         if (step) {
           e.preventDefault();
           go(step);
@@ -99,6 +102,43 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
       <div
         ref={scroller}
         data-lenis-prevent
+        // Vertical touch swipes scroll natively (snap). Horizontal swipes (touch or mouse)
+        // and vertical mouse drags are handled here.
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          gesture.current = { x: t.clientX, y: t.clientY, moved: false };
+        }}
+        onTouchEnd={(e) => {
+          const g = gesture.current;
+          gesture.current = null;
+          if (!g) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - g.x;
+          const dy = t.clientY - g.y;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) go(dx < 0 ? 1 : -1);
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse" && e.button === 0) gesture.current = { x: e.clientX, y: e.clientY, moved: false };
+        }}
+        onPointerMove={(e) => {
+          const g = gesture.current;
+          if (e.pointerType === "mouse" && g && !g.moved && Math.hypot(e.clientX - g.x, e.clientY - g.y) > 10) g.moved = true;
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType !== "mouse") return;
+          const g = gesture.current;
+          if (g?.moved) {
+            const dx = e.clientX - g.x;
+            const dy = e.clientY - g.y;
+            if (Math.abs(dx) > Math.abs(dy) ? Math.abs(dx) > 50 : Math.abs(dy) > 50) {
+              go(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : -1) : dy < 0 ? 1 : -1);
+            }
+          }
+          setTimeout(() => (gesture.current = null));
+        }}
+        onClickCapture={(e) => {
+          if (gesture.current?.moved) e.stopPropagation(); // a slide, not a tap to pause
+        }}
         className="h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain scrollbar-none"
       >
         {videos.map((v, i) => (

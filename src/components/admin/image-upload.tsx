@@ -6,37 +6,11 @@ import { ImagePlus, Link2, Loader2, Trash2, UploadCloud } from "lucide-react";
 import { discardUpload, getUploadUrl } from "@/app/admin/(panel)/upload-actions";
 import { inputClass } from "./form";
 import { cn } from "@/lib/utils";
+import { prepareImage, putWithProgress } from "@/lib/upload-client";
 
-/**
- * Downscale + convert to WebP in the browser before upload: a 6 MB phone
- * photo becomes ~200 KB, so uploads are fast and storage stays small.
- */
-async function prepareImage(file: File, maxSide = 1600): Promise<Blob> {
-  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", 0.85));
-  return blob && blob.size < file.size ? blob : file;
-}
+export { putWithProgress };
 
-export function putWithProgress(url: string, body: Blob, onProgress: (pct: number) => void) {
-  return new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", body.type);
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
-    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
-    xhr.onerror = () => reject(new Error("Upload blocked — check the bucket's CORS policy (SETUP.md §2)."));
-    xhr.send(body);
-  });
-}
-
-export type UploadFolder = "categories" | "products" | "hero" | "reels" | "testimonials" | "reviews";
+export type UploadFolder = "categories" | "products" | "hero" | "reels" | "testimonials" | "reviews" | "payments";
 
 /** Resize (photos only; videos go as-is) → presign → PUT straight to the bucket. Returns the public URL. */
 export async function uploadImage(file: File, folder: UploadFolder, onProgress: (pct: number) => void) {

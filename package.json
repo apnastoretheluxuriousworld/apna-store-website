@@ -19,8 +19,9 @@
     "test": "npm run test:db && npm run test:storage && npm run test:auth && npm run test:product",
     "admin:create": "tsx scripts/create-admin.mts",
     "test:auth": "tsx scripts/test-auth.mts",
-    "e2e": "node e2e/admin-auth.mjs && node e2e/categories.mjs && node e2e/products.mjs && node e2e/admin-cache.mjs && node e2e/store-menu.mjs && node e2e/reviews.mjs && node e2e/testimonials.mjs",
-    "test:product": "tsx scripts/test-product.mts"
+    "e2e": "node e2e/admin-auth.mjs && node e2e/categories.mjs && node e2e/products.mjs && node e2e/admin-cache.mjs && node e2e/store-menu.mjs && node e2e/reviews.mjs && node e2e/customer-reviews.mjs && node e2e/testimonials.mjs && node e2e/hero.mjs && node e2e/customers.mjs && node e2e/checkout.mjs && node e2e/notifications.mjs && node e2e/feedback.mjs && node e2e/forgot-pin.mjs",
+    "test:product": "tsx scripts/test-product.mts",
+    "feed:import": "tsx scripts/import-feed.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
@@ -30,6 +31,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^7.0.3",
+    "@supabase/realtime-js": "^2.118.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "lenis": "^1.3.27",

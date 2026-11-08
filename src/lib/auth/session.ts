@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { createSession, deleteSession, validateSession, type SessionUser } from "./core";
+import {
+  ADMIN_SESSION_TTL_MS,
+  createSession,
+  deleteSession,
+  SESSION_TTL_MS,
+  validateSession,
+  type SessionUser,
+} from "./core";
 
 /**
  * Data Access Layer for auth. Every admin page must call requireAdminView()
@@ -54,9 +61,52 @@ export async function requireAdminView(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * Storefront account pages and customer Server Actions. Not signed in → the
+ * sign-in page, then back to `returnTo`. Call inside a <Suspense> boundary.
+ */
+export async function requireCustomer(returnTo = "/account"): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  // The admin's session isn't a customer account (one shared cookie): sign in as a customer.
+  if (user?.role !== "customer") redirect(`/account/login?next=${encodeURIComponent(returnTo)}`);
+  return user;
+}
+
+/**
+ * For rendering account pages: same check as requireCustomer(), but
+ * private-cached like requireAdminView(), so a visited or prefetched account
+ * page is shown instantly. Never stored on the server.
+ */
+export async function requireCustomerView(returnTo = "/account"): Promise<SessionUser> {
+  "use cache: private";
+  cacheLife("account");
+  const token = (await cookies()).get(COOKIE)?.value;
+  const user = token ? await validateSession(db(), token) : null;
+  if (user?.role !== "customer") redirect(`/account/login?next=${encodeURIComponent(returnTo)}`);
+  return user;
+}
+
+/**
+ * Signed-in user for cached rendering (no redirect): like requireCustomerView()
+ * but returns null when signed out. Use inside "use cache: private" instead of
+ * getCurrentUser(), which needs request time (connection()).
+ */
+export async function currentUserView(): Promise<SessionUser | null> {
+  "use cache: private";
+  cacheLife("account");
+  const token = (await cookies()).get(COOKIE)?.value;
+  return token ? validateSession(db(), token) : null;
+}
+
+/** The raw session token of this request (to keep it when signing out other devices). */
+export async function currentSessionToken() {
+  return (await cookies()).get(COOKIE)?.value;
+}
+
 /** Call from a Server Action after a successful login. */
-export async function startSession(userId: string) {
-  const { token, expiresAt } = await createSession(db(), userId);
+export async function startSession(userId: string, role: SessionUser["role"]) {
+  const ttl = role === "admin" ? ADMIN_SESSION_TTL_MS : SESSION_TTL_MS;
+  const { token, expiresAt } = await createSession(db(), userId, new Date(), ttl);
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

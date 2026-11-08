@@ -11,6 +11,12 @@ async function referencedUrls(urls: string[]) {
       d.select({ a: s.categories.imageUrl }).from(s.categories).where(inArray(s.categories.imageUrl, urls)),
       d.select({ a: s.productImages.url }).from(s.productImages).where(inArray(s.productImages.url, urls)),
       d.select({ a: s.orderItems.imageUrl }).from(s.orderItems).where(inArray(s.orderItems.imageUrl, urls)),
+      d.select({ a: s.orders.paymentProofUrl }).from(s.orders).where(inArray(s.orders.paymentProofUrl, urls)),
+      // The store's UPI QR (Settings → Payments).
+      d
+        .select({ a: sql<string | null>`${s.settings.value}->>'qrUrl'` })
+        .from(s.settings)
+        .where(sql`${s.settings.key} = 'payments' and ${s.settings.value}->>'qrUrl' in (${sql.join(urls.map((u) => sql`${u}`), sql`, `)})`),
       d
         .select({ a: s.heroSlides.mediaUrl, b: s.heroSlides.mobileMediaUrl, c: s.heroSlides.posterUrl })
         .from(s.heroSlides)

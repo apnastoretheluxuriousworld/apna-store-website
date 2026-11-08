@@ -18,6 +18,7 @@ import { need } from "./_env.mts";
 import { pgSslFromEnv } from "../src/lib/db/ssl";
 import * as schema from "../src/lib/db/schema";
 import * as st from "../src/lib/storage/core";
+import { seedCollectionHeroSlides } from "../src/lib/db/seed";
 
 type Item = { name: string; description: string; price: number; file: string; attributes?: Record<string, string | number | boolean> };
 
@@ -155,6 +156,9 @@ try {
       console.log(`  ✓ product ${catSlug}/${slug}`);
     }
   }
+
+  const heroSlides = await seedCollectionHeroSlides(db);
+  if (heroSlides) console.log(`  ✓ ${heroSlides} homepage hero slides (one per collection)`);
 
   console.log("\nImport complete:");
   console.table(report);

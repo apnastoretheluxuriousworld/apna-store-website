@@ -1,7 +1,10 @@
 /**
  * Create (or reset) an admin account. The password is only ever stored hashed.
  *
- *   npm run admin:create -- --username apnastore --password 'secret' [--name "Store Admin"]
+ *   npm run admin:create -- --username <name> --password '<at least 12 characters>' [--name "Store Admin"]
+ *
+ * Use a long random password (a password manager's generator). Don't reuse it
+ * in test files or commit it anywhere.
  *
  * Running it again for the same username resets that admin's password.
  */
@@ -12,7 +15,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { pgSslFromEnv } from "../src/lib/db/ssl";
 import { eq } from "drizzle-orm";
 import * as s from "../src/lib/db/schema";
-import { hashPassword, PASSWORD_MIN_LENGTH } from "../src/lib/auth/password";
+import { ADMIN_PASSWORD_MIN_LENGTH, hashPassword } from "../src/lib/auth/password";
 
 const { values } = parseArgs({
   options: {
@@ -25,7 +28,8 @@ const { values } = parseArgs({
 const username = values.username?.trim().toLowerCase();
 const password = values.password ?? "";
 if (!username || !/^[a-z0-9._-]{3,32}$/.test(username)) fail("--username is required (3–32 letters, numbers, . _ -)");
-if (password.length < PASSWORD_MIN_LENGTH) fail(`--password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+if (password.length < ADMIN_PASSWORD_MIN_LENGTH) fail(`--password must be at least ${ADMIN_PASSWORD_MIN_LENGTH} characters`);
+if (/^\d+$/.test(password) || new Set(password).size < 6) fail("--password is too easy to guess: use a long random password");
 
 const client = new Pool({ connectionString: need("DATABASE_URL_DIRECT"), ssl: pgSslFromEnv(), max: 1 });
 const db = drizzle(client, { schema: s, casing: "snake_case" });

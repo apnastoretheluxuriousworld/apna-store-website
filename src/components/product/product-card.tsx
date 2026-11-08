@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart, Star } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
-import { Button } from "@/components/ui/button";
+import { AddToBag } from "@/components/cart/add-to-bag";
 import { formatPrice } from "@/lib/format";
 import type { StoreProduct } from "@/lib/data/products";
 
@@ -11,8 +11,8 @@ export function ProductCard({ product }: { product: StoreProduct }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl border border-gold-500/10 bg-ink-800/70 transition-colors duration-500 hover:border-gold-500/30">
       <Link
-        href={`/shop/${product.categorySlug}`}
-        className="relative block aspect-4/5 overflow-hidden bg-ink-950"
+        href={`/shop/${product.categorySlug}/${product.slug}`}
+        className="relative block aspect-4/5 overflow-hidden bg-ink-950 lg:aspect-square"
         aria-label={product.name}
       >
         {product.image ? (
@@ -21,7 +21,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
               src={product.image}
               alt={product.name}
               fill
-              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              sizes="(min-width: 1280px) 16vw, (min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
               className="object-cover transition-transform duration-1000 ease-luxe group-hover:scale-105"
             />
             <div className="absolute inset-x-0 bottom-0 h-1/4 bg-linear-to-t from-ink-800/80 to-transparent" />
@@ -50,9 +50,11 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         <Heart className="size-4" strokeWidth={1.5} />
       </button>
 
-      <div className="flex flex-1 flex-col p-3 lg:p-4">
+      <div className="flex flex-1 flex-col p-3">
         <h3 className="truncate text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-gold-400 lg:text-xs">
-          {product.name}
+          <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="hover:text-gold-300">
+            {product.name}
+          </Link>
         </h3>
         {product.subtitle && <p className="mt-0.5 truncate text-[0.7rem] text-stone">{product.subtitle}</p>}
         <p className="mt-1.5 flex items-baseline gap-2 text-sm font-medium text-ivory">
@@ -79,9 +81,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           </div>
         )}
         <div className="mt-auto pt-3">
-          <Button variant="outline" size="sm" className="w-full" disabled={!product.inStock}>
-            {product.inStock ? "Add to bag" : "Sold out"}
-          </Button>
+          <AddToBag product={product} />
         </div>
       </div>
     </article>
