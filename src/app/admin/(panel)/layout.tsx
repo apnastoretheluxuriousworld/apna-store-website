@@ -5,6 +5,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminBottomBar, AdminMobileTop } from "@/components/admin/admin-mobile-nav";
 import { PanelSkeleton } from "@/components/admin/ui";
 import { OutboxStatus } from "@/components/admin/outbox";
+import { PwaSetup } from "@/components/admin/pwa";
 import { NotificationsProvider, UnreadBadge } from "@/components/admin/notifications";
 import { requireAdminView } from "@/lib/auth/session";
 import { countPendingReviews } from "@/lib/data/reviews";
@@ -131,6 +132,7 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
       <Suspense fallback={null}>
         <OutboxStatus />
       </Suspense>
+      <PwaSetup />
       <Toaster
         theme="dark"
         position="top-center"

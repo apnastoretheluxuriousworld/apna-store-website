@@ -5,14 +5,16 @@ export function SectionHeader({
   title,
   href,
   linkLabel = "View All",
+  id,
 }: {
   title: string;
   href?: string;
   linkLabel?: string;
+  id?: string;
 }) {
   return (
     <div className="mb-5 flex items-end justify-between gap-4 lg:mb-8">
-      <h2 className="text-[0.8rem] font-medium uppercase tracking-[0.22em] text-ivory lg:text-sm">
+      <h2 id={id} className="text-[0.8rem] font-medium uppercase tracking-[0.22em] text-ivory lg:text-sm">
         {title}
       </h2>
       {href && (

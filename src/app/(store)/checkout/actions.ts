@@ -8,10 +8,18 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { clientIp } from "@/lib/auth/request";
 import { db, schema as s } from "@/lib/db";
-import { adjustStock, getCheckoutSettings, priceCart, readCheckoutSettingsNow, type CartLine } from "@/lib/data/checkout";
+import {
+  adjustStock,
+  getCheckoutSettings,
+  priceBag,
+  priceCart,
+  readCheckoutSettingsNow,
+  type BundleLine,
+  type CartLine,
+} from "@/lib/data/checkout";
 import { checkCoupon } from "@/lib/data/coupons";
 import { PRODUCTS_TAG } from "@/lib/data/products";
-import { addNotification, notifyAdmins, signalAdmins } from "@/lib/data/notifications";
+import { addNotification, announceToAdmins, notifyAdmins, type NewNotification } from "@/lib/data/notifications";
 import { formatPrice } from "@/lib/format";
 import { allowHit } from "@/lib/rate-limit";
 import { keyFromUrl, storage, UploadRejected, uploadKinds } from "@/lib/storage";
@@ -27,6 +35,7 @@ import {
 } from "@/lib/validation/checkout";
 import { applyCouponSchema, commissionFor, describeCoupon, type CouponRule } from "@/lib/validation/coupon";
 import { normalizePhone } from "@/lib/validation/customer";
+import { bundlesSchema } from "@/lib/validation/offer";
 
 const DB_DOWN = "We couldn't reach the store right now. Please try again in a moment.";
 const HOUR = 60 * 60 * 1000;
@@ -47,18 +56,25 @@ async function ipKey(prefix: string) {
 
 /* ───────────── Bag ───────────── */
 
-export type CartQuote = { lines: Omit<CartLine, "trackStock">[]; settings: CheckoutSettings };
+export type PublicBundle = Omit<BundleLine, "picks"> & { picks: Omit<BundleLine["picks"][number], "trackStock">[] };
+export type CartQuote = { lines: Omit<CartLine, "trackStock">[]; bundles: PublicBundle[]; settings: CheckoutSettings };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drops the internal field
 const publicLine = ({ trackStock, ...line }: CartLine) => line;
+const publicBundle = (b: BundleLine): PublicBundle => ({
+  ...b,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drops the internal field
+  picks: b.picks.map(({ trackStock, ...p }) => p),
+});
 
-/** Live names, photos, prices and stock for the bag in this browser. */
-export async function quoteCart(items: unknown): Promise<ActionResult<CartQuote>> {
+/** Live names, photos, prices and stock for the bag in this browser (products and offer bundles). */
+export async function quoteCart(items: unknown, bundles: unknown = []): Promise<ActionResult<CartQuote>> {
   const parsed = cartSchema.safeParse(items);
-  if (!parsed.success) return { ok: false, error: "Your cart couldn't be read. Please refresh the page." };
+  const parsedBundles = bundlesSchema.safeParse(bundles);
+  if (!parsed.success || !parsedBundles.success) return { ok: false, error: "Your cart couldn't be read. Please refresh the page." };
   try {
-    const [lines, settings] = await Promise.all([priceCart(parsed.data), getCheckoutSettings()]);
-    return { ok: true, data: { lines: lines.map(publicLine), settings } };
+    const [bag, settings] = await Promise.all([priceBag(parsed.data, parsedBundles.data), getCheckoutSettings()]);
+    return { ok: true, data: { lines: bag.lines.map(publicLine), bundles: bag.bundles.map(publicBundle), settings } };
   } catch (e) {
     console.error("[quoteCart]", e);
     return { ok: false, error: DB_DOWN };
@@ -85,7 +101,9 @@ export async function applyCoupon(input: unknown, items: unknown): Promise<Actio
   try {
     const user = await getCurrentUser();
     const lines = await priceCart(cart.data);
+    // Coupons work on the regular items only: offer bundles already have their own price.
     const subtotal = lines.filter((l) => !l.issue).reduce((n, l) => n + l.unitPrice * l.quantity, 0);
+    if (subtotal <= 0) return { ok: false, error: "Coupons don't apply to offers. Add other items to your cart to use a code." };
     const res = await checkCoupon(parsed.data.code, {
       subtotal,
       phone: normalizePhone(parsed.data.phone) ?? (user?.role === "customer" ? user.phone : null),
@@ -137,6 +155,7 @@ export type PlaceOrderResult =
       fieldErrors?: Record<string, string>;
       /** The bag changed on the server (price, stock): show these lines. */
       lines?: CartQuote["lines"];
+      bundles?: CartQuote["bundles"];
       /** The coupon can't be used any more (expired, used up…): the checkout drops it. */
       couponRejected?: boolean;
     };
@@ -151,7 +170,10 @@ async function newOrderNumber(tx: Parameters<Parameters<ReturnType<typeof db>["t
 }
 
 class CartChanged extends Error {
-  constructor(public lines: CartLine[]) {
+  constructor(
+    public lines: CartLine[],
+    public bundles: BundleLine[],
+  ) {
     super("cart changed");
   }
 }
@@ -196,15 +218,25 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
       return { ok: false, error: "UPI payment isn't available right now. Please choose another way to pay." };
     }
 
+    const pending: { notification?: NewNotification } = {}; // announced once the order is committed
     const result = await d.transaction(async (tx) => {
-      const lines = await priceCart(v.items, { tx, lock: true });
-      if (lines.some((l) => l.issue)) throw new CartChanged(lines);
+      const { lines, bundles } = await priceBag(v.items, v.bundles, { tx, lock: true });
+      if (lines.some((l) => l.issue) || bundles.some((b) => b.issue)) throw new CartChanged(lines, bundles);
 
-      const subtotal = lines.reduce((n, l) => n + l.unitPrice * l.quantity, 0);
+      // Coupons only ever apply to the regular items (offers have their own price).
+      const itemsSubtotal = lines.reduce((n, l) => n + l.unitPrice * l.quantity, 0);
+      const subtotal = itemsSubtotal + bundles.reduce((n, b) => n + b.price, 0);
 
       // Re-check the coupon with its row locked, so its limits hold under concurrent orders.
+      if (v.couponCode && itemsSubtotal <= 0) {
+        return { error: `Coupon ${v.couponCode}: coupons don't apply to offers`, couponRejected: true } as const;
+      }
       const coupon = v.couponCode
-        ? await checkCoupon(v.couponCode, { subtotal, phone: v.address.phone, userId: user?.role === "customer" ? user.id : null }, { tx, lock: true })
+        ? await checkCoupon(
+            v.couponCode,
+            { subtotal: itemsSubtotal, phone: v.address.phone, userId: user?.role === "customer" ? user.id : null },
+            { tx, lock: true },
+          )
         : null;
       if (coupon && !coupon.ok) return { error: `Coupon ${v.couponCode}: ${coupon.error}`, couponRejected: true } as const;
       const applied = coupon?.ok ? coupon : null;
@@ -215,7 +247,10 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
         if (blocked) return { error: blocked } as const;
       }
 
-      await adjustStock(tx, lines, -1);
+      const bundleItems = bundles.flatMap((b, i) =>
+        b.picks.map((p) => ({ ...p, offerId: b.offerId, offerTitle: b.title, bundleNo: i + 1 })),
+      );
+      await adjustStock(tx, [...lines, ...bundleItems.map((p) => ({ ...p, quantity: 1 }))], -1);
 
       const a = v.address;
       const orderNumber = await newOrderNumber(tx);
@@ -246,7 +281,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
                 couponId: applied.coupon.id,
                 influencerId: applied.coupon.influencerId,
                 commission: applied.coupon.influencerId
-                  ? commissionFor(subtotal, totals.discount, applied.coupon.commissionPercent)
+                  ? commissionFor(itemsSubtotal, totals.discount, applied.coupon.commissionPercent)
                   : 0,
               }
             : {}),
@@ -261,8 +296,8 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
         })
         .returning({ id: s.orders.id });
 
-      await tx.insert(s.orderItems).values(
-        lines.map((l) => ({
+      await tx.insert(s.orderItems).values([
+        ...lines.map((l) => ({
           orderId: order.id,
           productId: l.productId,
           variantId: l.variantId,
@@ -272,24 +307,38 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
           unitPrice: l.unitPrice,
           quantity: l.quantity,
         })),
-      );
+        ...bundleItems.map((p) => ({
+          orderId: order.id,
+          productId: p.productId,
+          variantId: p.variantId,
+          name: p.name,
+          variantLabel: p.variantLabel,
+          imageUrl: p.image,
+          unitPrice: p.price,
+          quantity: 1,
+          offerId: p.offerId,
+          offerTitle: p.offerTitle,
+          bundleNo: p.bundleNo,
+        })),
+      ]);
       await tx.insert(s.orderStatusHistory).values({
         orderId: order.id,
         status: "placed",
         note: v.paymentMethod === "upi" ? "Payment screenshot received. We'll verify it shortly." : "Cash on delivery.",
       });
-      const itemCount = lines.reduce((n, l) => n + l.quantity, 0);
-      await addNotification(
-        {
-          type: "order",
-          title: `New order #${orderNumber} · ${formatPrice(totals.total)}`,
-          body: `${a.fullName}, ${a.city} · ${itemCount} item${itemCount > 1 ? "s" : ""} · ${
-            v.paymentMethod === "upi" ? "UPI: payment to verify" : "Cash on delivery"
-          }${applied ? ` · coupon ${applied.coupon.code}` : ""}`,
-          href: `/admin/orders/${order.id}`,
-        },
-        tx,
-      );
+      const itemCount = lines.reduce((n, l) => n + l.quantity, 0) + bundleItems.length;
+      const notification: NewNotification = {
+        type: "order",
+        title: `New order #${orderNumber} · ${formatPrice(totals.total)}`,
+        body: `${a.fullName}, ${a.city} · ${itemCount} item${itemCount > 1 ? "s" : ""} · ${
+          v.paymentMethod === "upi" ? "UPI: payment to verify" : "Cash on delivery"
+        }${bundles.length ? ` · ${bundles.length === 1 ? `offer: ${bundles[0].title}` : `${bundles.length} offers`}` : ""}${
+          applied ? ` · coupon ${applied.coupon.code}` : ""
+        }`,
+        href: `/admin/orders/${order.id}`,
+      };
+      await addNotification(notification, tx);
+      pending.notification = notification;
 
       // Signed-in customers: remember the address for next time.
       if (user?.role === "customer" && v.saveAddress) {
@@ -319,7 +368,9 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
         ...("couponRejected" in result ? { couponRejected: true, fieldErrors: { couponCode: result.error! } } : {}),
       };
     }
-    after(signalAdmins); // live admin notification, after the response is sent
+    // Live admin notification + phone push, after the response is sent.
+    const { notification } = pending;
+    if (notification) after(() => announceToAdmins(notification).catch((e) => console.error("[checkout] announce", e)));
     updateTag(PRODUCTS_TAG); // stock changed → "Sold out" on cards
     if (user) revalidatePath("/account", "layout");
     return { ok: true, token: result.token, orderNumber: result.orderNumber };
@@ -329,6 +380,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
         ok: false,
         error: "Some items in your cart changed (price or stock). Please review your cart.",
         lines: e.lines.map(publicLine),
+        bundles: e.bundles.map(publicBundle),
       };
     }
     console.error("[placeOrder]", e);

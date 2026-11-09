@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, CircleCheck, PenLine, ExternalLink, Hourglass, MapPin, MessageCircle, Package, Truck, Wallet } from "lucide-react";
+import { AlertCircle, CircleCheck, Gift, PenLine, ExternalLink, Hourglass, MapPin, MessageCircle, Package, Truck, Wallet } from "lucide-react";
 import { OrderStatusBadge, OrderTracker } from "@/components/account/order-status";
 import { ProofResubmit } from "@/components/checkout/proof-resubmit";
 import type { OrderDetail } from "@/lib/data/customers";
@@ -100,6 +100,11 @@ export function OrderView({ order, reviewed, helpHref = "/contact" }: { order: O
                   <span className="mt-0.5 block text-xs text-mute">
                     {formatPrice(i.unitPrice)} × {i.quantity}
                   </span>
+                  {i.offerTitle && (
+                    <span className="mt-1 inline-flex items-center gap-1 rounded bg-gold-500/10 px-1.5 py-0.5 text-[0.65rem] text-gold-300">
+                      <Gift className="size-3" strokeWidth={1.6} /> Offer: {i.offerTitle}
+                    </span>
+                  )}
                   {canReview && i.productId && (
                     <Link
                       href={`/account/reviews/${i.productId}`}

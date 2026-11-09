@@ -26,6 +26,7 @@ import { deleteHeroSlide, saveHeroSlide } from "@/app/admin/(panel)/hero/actions
 import { savePaymentSettings, saveStoreInfo } from "@/app/admin/(panel)/settings/actions";
 import { deleteCoupon, saveCoupon } from "@/app/admin/(panel)/coupons/actions";
 import { deleteInfluencer, saveInfluencer } from "@/app/admin/(panel)/influencers/actions";
+import { deleteOffer, saveOffer } from "@/app/admin/(panel)/offers/actions";
 import { cn } from "@/lib/utils";
 
 type Result = { ok: boolean; error?: string };
@@ -45,6 +46,8 @@ const runners = {
   "coupon.delete": (p: unknown) => deleteCoupon(p),
   "influencer.save": (p: unknown) => saveInfluencer(p),
   "influencer.delete": (p: unknown) => deleteInfluencer(p),
+  "offer.save": (p: unknown) => saveOffer(p),
+  "offer.delete": (p: unknown) => deleteOffer(p),
 } satisfies Record<string, (payload: unknown) => Promise<Result>>;
 
 export type JobKind = keyof typeof runners;

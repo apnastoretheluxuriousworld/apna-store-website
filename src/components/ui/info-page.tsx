@@ -43,7 +43,7 @@ export function Prose({ children }: { children: React.ReactNode }) {
       className={cn(
         "text-sm leading-relaxed text-stone lg:text-[0.95rem]",
         "[&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-light [&_h2]:text-ivory first:[&_h2]:mt-0",
-        "[&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_li]:marker:text-gold-500",
+        "[&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:space-y-1.5 [&_ol]:pl-5 [&_li]:marker:text-gold-500",
         "[&_a]:text-gold-300 [&_a]:underline-offset-4 hover:[&_a]:underline [&_strong]:font-medium [&_strong]:text-ivory",
       )}
     >

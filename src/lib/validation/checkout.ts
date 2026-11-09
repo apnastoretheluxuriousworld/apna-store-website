@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { nameSchema, phoneSchema } from "./customer";
+import { bundlesSchema } from "./offer";
 
 /* ───────────── Cart ───────────── */
 
@@ -17,7 +18,8 @@ export const cartItemSchema = z.object({
 });
 export type CartItem = z.infer<typeof cartItemSchema>;
 
-export const cartSchema = z.array(cartItemSchema).min(1, "Your cart is empty").max(MAX_CART_LINES);
+/** Product lines (may be empty when the bag holds only offers; placeOrderSchema checks the bag isn't empty). */
+export const cartSchema = z.array(cartItemSchema).max(MAX_CART_LINES);
 
 export const lineKey = (i: { productId: string; variantId: string | null }) => `${i.productId}:${i.variantId ?? ""}`;
 
@@ -165,10 +167,12 @@ const couponField = z
   .default("")
   .transform((v) => v.replace(/\s+/g, "").toUpperCase());
 
-export const placeOrderSchema = z.discriminatedUnion("paymentMethod", [
+export const placeOrderSchema = z
+  .discriminatedUnion("paymentMethod", [
   z.object({
     paymentMethod: z.literal("upi"),
     items: cartSchema,
+    bundles: bundlesSchema.default([]),
     address: addressSchema,
     notes: optionalLine(300),
     saveAddress: z.boolean().default(true),
@@ -179,13 +183,15 @@ export const placeOrderSchema = z.discriminatedUnion("paymentMethod", [
   z.object({
     paymentMethod: z.literal("cod"),
     items: cartSchema,
+    bundles: bundlesSchema.default([]),
     address: addressSchema,
     notes: optionalLine(300),
     saveAddress: z.boolean().default(true),
     couponCode: couponField,
     codConsent: z.literal(true, "Please confirm you'll pay cash on delivery"),
   }),
-]);
+  ])
+  .refine((v) => v.items.length + v.bundles.length > 0, { message: "Your cart is empty", path: ["items"] });
 export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
 
 export const proofSchema = z.object({ proofUrl: z.url("Upload the payment screenshot"), reference: utrSchema });

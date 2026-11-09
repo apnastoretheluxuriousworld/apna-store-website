@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { AlertCircle, Banknote, Loader2, Lock, QrCode, ShoppingBag } from "lucide-react";
+import { AlertCircle, Banknote, Gift, Loader2, Lock, QrCode, ShoppingBag } from "lucide-react";
 import { placeOrder, type AppliedCoupon } from "@/app/(store)/checkout/actions";
 import { FieldError, storeInputClass } from "@/components/account/fields";
 import { clearCart } from "@/components/cart/cart-store";
@@ -58,7 +58,7 @@ function Step({ n, title, children, aside }: { n: number; title: string; childre
 export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
   const router = useRouter();
   const bag = useCartQuote();
-  const { lines, settings, hasIssues } = bag;
+  const { lines, bundles, settings, hasIssues } = bag;
 
   const [address, setAddress] = useState<AddressDraft>(prefill.address);
   const [notes, setNotes] = useState("");
@@ -74,9 +74,9 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
   const [couponError, setCouponError] = useState<string | null>(null);
 
   if (placed) return <CartSkeleton />;
-  if (!bag.ready || (bag.loading && lines.length === 0 && bag.items.length > 0)) return <CartSkeleton />;
+  if (!bag.ready || (bag.loading && lines.length === 0 && bundles.length === 0 && !bag.empty)) return <CartSkeleton />;
 
-  if (bag.items.length === 0) {
+  if (bag.empty) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center py-16 text-center">
         <ShoppingBag className="size-10 text-gold-400" strokeWidth={1.1} />
@@ -89,11 +89,13 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
   }
 
   // The coupon is worked out again here as the bag changes (the server re-checks it on Place order).
+  // It only ever applies to the regular items: offers already have their own price.
   const subtotal = bag.totals.subtotal;
-  const discount = coupon ? couponDiscount(coupon.rule, subtotal) : 0;
+  const itemsSubtotal = bag.itemsSubtotal;
+  const discount = coupon ? couponDiscount(coupon.rule, itemsSubtotal) : 0;
   const belowMinimum =
-    coupon && subtotal < coupon.rule.minOrder
-      ? `Add ${formatPrice(coupon.rule.minOrder - subtotal)} more to use this code (minimum order ${formatPrice(coupon.rule.minOrder)}).`
+    coupon && itemsSubtotal < coupon.rule.minOrder
+      ? `Add ${formatPrice(coupon.rule.minOrder - itemsSubtotal)} more to use this code (minimum order ${formatPrice(coupon.rule.minOrder)}, offers not included).`
       : null;
   // COD's minimum is judged on what the customer pays (after the discount, before the COD charge).
   const codBlocked = settings ? codBlockReason(computeTotals(subtotal, settings, null, discount).total, settings) : null;
@@ -128,6 +130,7 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
         ? {
             paymentMethod: "upi" as const,
             items: bag.items,
+            bundles: bag.bundleItems,
             address,
             notes,
             saveAddress,
@@ -135,7 +138,7 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
             proofUrl: proof.url ?? "",
             reference: proof.reference,
           }
-        : { paymentMethod: "cod" as const, items: bag.items, address, notes, saveAddress, couponCode: coupon && discount > 0 ? coupon.code : "", codConsent };
+        : { paymentMethod: "cod" as const, items: bag.items, bundles: bag.bundleItems, address, notes, saveAddress, couponCode: coupon && discount > 0 ? coupon.code : "", codConsent };
     const parsed = placeOrderSchema.safeParse(input);
     if (!parsed.success) {
       const fe = zodFieldErrors(parsed.error);
@@ -359,6 +362,19 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
             </Link>
           </div>
           <ul className="max-h-72 space-y-3 overflow-y-auto pr-1" data-lenis-prevent>
+            {bundles.map((b) => (
+              <li key={`offer:${b.id}`} className="rounded-lg border border-gold-500/25 bg-gold-500/5 p-2.5">
+                <span className="flex items-center gap-2">
+                  <Gift className="size-3.5 shrink-0 text-gold-400" strokeWidth={1.6} />
+                  <span className="min-w-0 flex-1 truncate text-xs text-ivory">{b.title}</span>
+                  <span className="text-xs text-ivory tabular-nums">{formatPrice(b.price)}</span>
+                </span>
+                <span className="mt-1 block pl-5.5 text-[0.7rem] leading-relaxed text-stone">
+                  {b.picks.map((p) => (p.variantLabel ? `${p.name} (${p.variantLabel})` : p.name)).join(" · ")}
+                </span>
+                {b.issue && <span className="mt-1 block pl-5.5 text-[0.7rem] text-red-300">{b.issue}</span>}
+              </li>
+            ))}
             {lines.map((l) => (
               <li key={l.key} className="flex items-center gap-3">
                 <span className="relative aspect-4/5 w-12 shrink-0 overflow-hidden rounded-md bg-ink-900">
@@ -402,6 +418,7 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
               <dd className="font-serif text-2xl text-gold-300 tabular-nums">{formatPrice(totals.total)}</dd>
             </div>
           </dl>
+          {itemsSubtotal > 0 ? (
           <CouponBox
             items={bag.items}
             phone={address.phone}
@@ -414,6 +431,12 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
             onError={setCouponError}
             belowMinimum={belowMinimum}
           />
+          ) : (
+            <p className="mt-4 rounded-lg bg-ink-900 px-3 py-2 text-xs text-stone">Coupons don&apos;t apply to offers.</p>
+          )}
+          {itemsSubtotal > 0 && bundles.length > 0 && (
+            <p className="mt-2 text-[0.7rem] text-mute">Coupons apply to the regular items only, not to offers.</p>
+          )}
           {totals.discount > 0 && (
             <p className="mt-2 text-center text-xs text-emerald-300">You save {formatPrice(totals.discount)} on this order</p>
           )}

@@ -69,6 +69,9 @@ export type OrderDetail = {
     unitPrice: number;
     quantity: number;
     slug: string | null;
+    /** Bought in an offer bundle: its title and which bundle of the order (1, 2…). */
+    offerTitle: string | null;
+    bundleNo: number | null;
   }[];
   history: { id: string; status: OrderStatus; note: string | null; createdAt: Date }[];
 };
@@ -116,13 +119,16 @@ export async function loadOrderDetail(where: SQL): Promise<OrderDetail | null> {
         imageUrl: s.orderItems.imageUrl,
         unitPrice: s.orderItems.unitPrice,
         quantity: s.orderItems.quantity,
+        offerTitle: s.orderItems.offerTitle,
+        bundleNo: s.orderItems.bundleNo,
         // Link back to the product only while it is still live in the store.
         slug: sql<string | null>`case when "products"."status" = 'active' then "products"."slug" end`,
       })
       .from(s.orderItems)
       .leftJoin(s.products, eq(s.products.id, s.orderItems.productId))
       .where(eq(s.orderItems.orderId, order.id))
-      .orderBy(asc(s.orderItems.id)),
+      // Regular items first, then each offer's items together.
+      .orderBy(sql`coalesce(${s.orderItems.bundleNo}, 0)`, asc(s.orderItems.id)),
     d
       .select({ id: s.orderStatusHistory.id, status: s.orderStatusHistory.status, note: s.orderStatusHistory.note, createdAt: s.orderStatusHistory.createdAt })
       .from(s.orderStatusHistory)

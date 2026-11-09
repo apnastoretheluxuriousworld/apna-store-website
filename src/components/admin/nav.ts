@@ -1,6 +1,7 @@
 import {
   Bell,
   Clapperboard,
+  Gift,
   GalleryHorizontal,
   FolderTree,
   LayoutDashboard,
@@ -34,6 +35,7 @@ export const adminNav: AdminNavItem[] = [
   { label: "Hero banners", href: "/admin/hero", icon: GalleryHorizontal },
   { label: "Feed", href: "/admin/feed", icon: Clapperboard },
   { label: "Testimonials", href: "/admin/testimonials", icon: Quote },
+  { label: "Offers", href: "/admin/offers", icon: Gift },
   { label: "Coupons", href: "/admin/coupons", icon: TicketPercent },
   { label: "Influencers", href: "/admin/influencers", icon: Megaphone },
   { label: "Feedback", href: "/admin/feedback", icon: MessagesSquare },

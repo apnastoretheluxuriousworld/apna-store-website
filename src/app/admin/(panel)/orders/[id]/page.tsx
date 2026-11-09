@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Gift, Package } from "lucide-react";
 import { z } from "zod";
 import { Card, PageHeader } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/account/order-status";
@@ -87,6 +87,11 @@ export default async function AdminOrderPage({
                       {i.variantLabel && `${i.variantLabel} · `}
                       {formatPrice(i.unitPrice)} × {i.quantity}
                     </span>
+                    {i.offerTitle && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-gold-500/10 px-1.5 py-0.5 text-[0.65rem] text-gold-300">
+                        <Gift className="size-3" /> Offer{i.bundleNo && o.items.some((x) => x.bundleNo && x.bundleNo > 1) ? ` ${i.bundleNo}` : ""}: {i.offerTitle}
+                      </span>
+                    )}
                   </span>
                   <span className="text-sm text-ivory tabular-nums">
                     {formatPrice(i.unitPrice * i.quantity)}

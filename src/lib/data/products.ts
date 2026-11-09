@@ -9,9 +9,9 @@ const coverImageSql = sql<string | null>`(select i."url" from "product_images" i
 
 export const PRODUCTS_TAG = "products";
 /** Same value as CATEGORIES_TAG in ./categories (not imported, to avoid a cycle). */
-const CATEGORIES_TAG = "categories";
+export const CATEGORIES_TAG = "categories";
 /** Card ratings come from approved reviews; the reviews module invalidates this tag. */
-const REVIEWS_TAG = "reviews";
+export const REVIEWS_TAG = "reviews";
 
 /*
  * ───────────── Storefront ─────────────
@@ -44,7 +44,7 @@ export type StoreVariant = { id: string; label: string; price: number; stockLeft
 
 type VariantRow = { id: string; label: string; price: number; stock: number };
 
-function queryStoreProducts(where?: SQL) {
+export function queryStoreProducts(where?: SQL) {
   return db()
     .select({
       id: s.products.id,
@@ -66,7 +66,7 @@ function queryStoreProducts(where?: SQL) {
     .where(and(eq(s.products.status, "active"), eq(s.categories.isActive, true), where));
 }
 
-function toStoreProduct(r: Awaited<ReturnType<typeof queryStoreProducts>>[number]): StoreProduct {
+export function toStoreProduct(r: Awaited<ReturnType<typeof queryStoreProducts>>[number]): StoreProduct {
   return {
     id: r.id,
     slug: r.slug,

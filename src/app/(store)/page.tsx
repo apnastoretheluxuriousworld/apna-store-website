@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Feed } from "@/components/home/feed";
 import { Hero } from "@/components/home/hero";
+import { Offers } from "@/components/home/offers";
 import { Testimonials } from "@/components/home/testimonials";
 import { SectionHeader } from "@/components/ui/section-header";
 import { CollectionRow } from "@/components/product/collection-row";
@@ -35,7 +36,10 @@ export default async function HomePage() {
       {/* 2. Our Feed — vertical 9:16 videos (Admin → Feed) */}
       <Feed />
 
-      {/* 3. Collections */}
+      {/* 3. Offers — combo deals (Admin → Offers) */}
+      <Offers />
+
+      {/* 4. Collections */}
       <section className="mx-auto max-w-site px-4 py-6 lg:px-12 lg:py-12">
         <Reveal>
           <SectionHeader title="Explore Collections" href="/shop" />
@@ -73,7 +77,7 @@ export default async function HomePage() {
         </RevealGroup>
       </section>
 
-      {/* 4. Best sellers (products marked Featured in admin) */}
+      {/* 5. Best sellers (products marked Featured in admin) */}
       {bestSellers.length > 0 && (
         <section className="mx-auto max-w-site px-4 py-12 lg:px-12 lg:py-20">
           <Reveal>
@@ -89,12 +93,12 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* 5. Homepage collections (Admin → Categories, up to 3) — small cards, horizontal scroll */}
+      {/* 6. Homepage collections (Admin → Categories, up to 3) — small cards, horizontal scroll */}
       {topCollections.map((c) => (
         <CollectionRow key={c.slug} name={c.name} slug={c.slug} products={c.products} />
       ))}
 
-      {/* 6. Testimonials (Admin → Testimonials) */}
+      {/* 7. Testimonials (Admin → Testimonials) */}
       <Testimonials />
     </>
   );

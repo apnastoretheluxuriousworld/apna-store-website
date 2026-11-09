@@ -309,8 +309,16 @@ export const orderItems = pgTable(
     imageUrl: text(),
     unitPrice: integer().notNull(),
     quantity: integer().notNull(),
+    /**
+     * Bought as part of an offer bundle ("Any 3 for ₹1,000"): the offer, its title
+     * at the time, and which bundle of the order (1, 2…) the item belongs to.
+     * unitPrice is then this item's share of the bundle price.
+     */
+    offerId: uuid().references((): AnyPgColumn => offers.id, { onDelete: "set null" }),
+    offerTitle: text(),
+    bundleNo: smallint(),
   },
-  (t) => [index().on(t.orderId)],
+  (t) => [index().on(t.orderId), index().on(t.offerId)],
 ).enableRLS();
 
 export const orderStatusHistory = pgTable(
@@ -371,6 +379,47 @@ export const coupons = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.influencerId)],
+).enableRLS();
+
+/**
+ * Combo offers ("Any 3 for ₹1,000"): the customer picks `pickCount` of the
+ * offer's products and pays `price` for all of them. Shown under the Feed on
+ * the homepage, each with its own page (/offers/<slug>). Coupons never apply
+ * to offer items, and the same products bought normally cost full price.
+ */
+export const offers = pgTable(
+  "offers",
+  {
+    id: id(),
+    slug: text().notNull().unique(),
+    title: text().notNull(),
+    description: text(),
+    coverUrl: text().notNull(),
+    pickCount: smallint().notNull(),
+    price: integer().notNull(),
+    sortOrder: sortOrder(),
+    isActive: boolean().notNull().default(true),
+    startsAt: timestamp({ withTimezone: true }),
+    expiresAt: timestamp({ withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [check("offers_pick_count_check", sql`${t.pickCount} between 1 and 10`), check("offers_price_check", sql`${t.price} > 0`)],
+).enableRLS();
+
+/** The products a customer can choose from in an offer, in the admin's order. */
+export const offerProducts = pgTable(
+  "offer_products",
+  {
+    offerId: uuid()
+      .notNull()
+      .references(() => offers.id, { onDelete: "cascade" }),
+    productId: uuid()
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    sortOrder: sortOrder(),
+  },
+  (t) => [primaryKey({ columns: [t.offerId, t.productId] }), index().on(t.productId)],
 ).enableRLS();
 
 /* ───────────── Engagement ───────────── */
@@ -506,6 +555,28 @@ export const adminNotifications = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.createdAt), index().on(t.readAt)],
+).enableRLS();
+
+/**
+ * Admin devices that get phone/desktop notifications (web push). One row per
+ * browser/installed app; the push service's endpoint URL identifies it. Rows
+ * are removed when the push service says the subscription is gone.
+ */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: id(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text().notNull().unique(),
+    p256dh: text().notNull(),
+    auth: text().notNull(),
+    /** e.g. "iPhone · Safari", shown nowhere yet; helps when debugging. */
+    device: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId)],
 ).enableRLS();
 
 /* ───────────── Customer feedback (chat with the store) ───────────── */

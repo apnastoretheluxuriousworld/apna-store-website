@@ -68,7 +68,7 @@ export function AddToBag({ product, className }: { product: Props; className?: s
   );
 }
 
-function VariantSheet({
+export function VariantSheet({
   product,
   open,
   onClose,

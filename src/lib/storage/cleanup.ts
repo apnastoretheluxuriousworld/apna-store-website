@@ -21,6 +21,7 @@ async function referencedUrls(urls: string[]) {
         .select({ a: s.heroSlides.mediaUrl, b: s.heroSlides.mobileMediaUrl, c: s.heroSlides.posterUrl })
         .from(s.heroSlides)
         .where(or(inArray(s.heroSlides.mediaUrl, urls), inArray(s.heroSlides.mobileMediaUrl, urls), inArray(s.heroSlides.posterUrl, urls))),
+      d.select({ a: s.offers.coverUrl }).from(s.offers).where(inArray(s.offers.coverUrl, urls)),
       d
         .select({ a: s.reels.videoUrl, b: s.reels.posterUrl })
         .from(s.reels)

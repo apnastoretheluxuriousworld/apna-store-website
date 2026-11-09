@@ -10,7 +10,7 @@ import { prepareImage, putWithProgress } from "@/lib/upload-client";
 
 export { putWithProgress };
 
-export type UploadFolder = "categories" | "products" | "hero" | "reels" | "testimonials" | "reviews" | "payments";
+export type UploadFolder = "categories" | "products" | "hero" | "offers" | "reels" | "testimonials" | "reviews" | "payments";
 
 /** Resize (photos only; videos go as-is) → presign → PUT straight to the bucket. Returns the public URL. */
 export async function uploadImage(file: File, folder: UploadFolder, onProgress: (pct: number) => void) {

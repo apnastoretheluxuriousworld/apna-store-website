@@ -92,6 +92,20 @@
       "when": 1794163532789,
       "tag": "0012_coupons_drop_used_count",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794220387295,
+      "tag": "0013_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794221689074,
+      "tag": "0014_offers",
+      "breakpoints": true
     }
   ]
 }

@@ -567,7 +567,9 @@ function VariantsCard({
                 className={cn("grid grid-cols-2 gap-2 rounded-lg border border-ink-600/60 p-2 sm:border-0 sm:p-0", cols)}
               >
                 <div className="col-span-2 sm:col-span-1">
+                  <VariantLabel htmlFor={`variant-${i}-label`}>Label</VariantLabel>
                   <input
+                    id={`variant-${i}-label`}
                     className={cn(inputClass, "h-10")}
                     placeholder="e.g. UK 8"
                     aria-label="Variant label"
@@ -576,9 +578,20 @@ function VariantsCard({
                   />
                   <ErrorText msg={errors?.[i]?.label?.message} />
                 </div>
-                <input className={cn(inputClass, "h-10 font-mono text-xs")} placeholder="SKU" aria-label="Variant SKU" {...register(`variants.${i}.sku`)} />
                 <div>
+                  <VariantLabel htmlFor={`variant-${i}-sku`}>SKU</VariantLabel>
                   <input
+                    id={`variant-${i}-sku`}
+                    className={cn(inputClass, "h-10 font-mono text-xs")}
+                    placeholder="SKU"
+                    aria-label="Variant SKU"
+                    {...register(`variants.${i}.sku`)}
+                  />
+                </div>
+                <div>
+                  <VariantLabel htmlFor={`variant-${i}-price`}>Price (₹)</VariantLabel>
+                  <input
+                    id={`variant-${i}-price`}
                     type="number"
                     inputMode="numeric"
                     min={0}
@@ -592,7 +605,9 @@ function VariantsCard({
                   <ErrorText msg={errors?.[i]?.priceOverride?.message} />
                 </div>
                 <div className={cn(!trackStock && "hidden")}>
+                  <VariantLabel htmlFor={`variant-${i}-stock`}>Stock</VariantLabel>
                   <input
+                    id={`variant-${i}-stock`}
                     type="number"
                     inputMode="numeric"
                     min={0}
@@ -604,7 +619,7 @@ function VariantsCard({
                   />
                   <ErrorText msg={errors?.[i]?.stock?.message} />
                 </div>
-                <div className="flex justify-end">
+                <div className="flex items-end justify-end">
                   <RemoveButton label="Remove variant" onClick={() => variants.remove(i)} />
                 </div>
               </li>
@@ -618,5 +633,14 @@ function VariantsCard({
         onClick={() => variants.append({ label: "", sku: "", priceOverride: null, stock: 1 })}
       />
     </Card>
+  );
+}
+
+/** Phones only: the variant table's column headings are hidden there, so each input gets its own label. */
+function VariantLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-1 block px-0.5 text-[0.6rem] uppercase tracking-[0.16em] text-mute sm:hidden">
+      {children}
+    </label>
   );
 }

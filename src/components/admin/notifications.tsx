@@ -239,6 +239,13 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     };
   }, [live, check]);
 
+  // Number on the installed app's icon (where supported), cleared once all are read.
+  useEffect(() => {
+    if (!loaded) return;
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    (unread ? nav.setAppBadge?.(unread) : nav.clearAppBadge?.())?.catch(() => {});
+  }, [loaded, unread]);
+
   const value = useMemo<State>(
     () => ({ items, unread, loaded, live, sound, setSound, markRead, markAllRead, open }),
     [items, unread, loaded, live, sound, setSound, markRead, markAllRead, open],

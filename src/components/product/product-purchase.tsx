@@ -93,6 +93,16 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
   const waMessage = () =>
     `${whatsappUrl}?text=${encodeURIComponent(`Hi, I'm interested in ${product.name}${variant ? ` (${variant.label})` : ""}: ${window.location.href}`)}`;
 
+  // Tell the floating WhatsApp button to sit above the sticky bar while it's showing.
+  const stickyVisible = showSticky && !soldOut;
+  useEffect(() => {
+    if (!stickyVisible) return;
+    document.documentElement.dataset.stickyCta = "";
+    return () => {
+      delete document.documentElement.dataset.stickyCta;
+    };
+  }, [stickyVisible]);
+
   return (
     <>
       {/* Price */}

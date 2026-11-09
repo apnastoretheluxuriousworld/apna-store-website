@@ -12,6 +12,7 @@ import {
   type CheckoutSettings,
   type PaymentSettings,
 } from "@/lib/validation/checkout";
+import { allocateBundle, type CartBundle } from "@/lib/validation/offer";
 import { SETTINGS_TAG } from "./settings";
 
 /* ───────────── Payment & delivery settings ───────────── */
@@ -79,17 +80,10 @@ export type CartLine = {
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-/**
- * Live prices and stock for the items in a bag. The browser only ever sends
- * ids and quantities; everything else comes from here. With `lock`, the
- * product and variant rows are locked (inside a transaction) so two orders
- * can't sell the same last piece.
- */
-export async function priceCart(items: CartItem[], opts: { tx?: Tx; lock?: boolean } = {}): Promise<CartLine[]> {
+/** Product + variant rows for pricing, optionally locked (inside a transaction). */
+async function loadCatalog(productIds: string[], opts: { tx?: Tx; lock?: boolean }) {
   const d = opts.tx ?? db();
-  const productIds = [...new Set(items.map((i) => i.productId))];
-  if (!productIds.length) return [];
-
+  if (!productIds.length) return { products: [], variants: [] };
   const productQuery = d
     .select({
       id: s.products.id,
@@ -119,43 +113,192 @@ export async function priceCart(items: CartItem[], opts: { tx?: Tx; lock?: boole
   const [products, variants] = opts.lock
     ? [await productQuery.for("update", { of: s.products }), await variantQuery.for("update")]
     : await Promise.all([productQuery, variantQuery]);
+  return { products, variants };
+}
 
-  // A product+variant asked for twice (two tabs) counts once, with both quantities.
+type Catalog = Awaited<ReturnType<typeof loadCatalog>>;
+
+/** One product line, priced and checked against its own stock. */
+function priceItem(item: CartItem, { products, variants }: Catalog): CartLine {
+  const p = products.find((x) => x.id === item.productId);
+  const own = variants.filter((v) => v.productId === item.productId);
+  const v = item.variantId ? own.find((x) => x.id === item.variantId) : undefined;
+  const base: CartLine = {
+    key: lineKey(item),
+    productId: item.productId,
+    variantId: item.variantId,
+    name: p?.name ?? "Unavailable item",
+    variantLabel: v?.label ?? null,
+    categorySlug: p?.categorySlug ?? "",
+    image: p?.image ?? null,
+    unitPrice: v?.priceOverride ?? p?.price ?? 0,
+    compareAtPrice: v?.priceOverride != null ? null : (p?.compareAtPrice ?? null),
+    quantity: item.qty,
+    maxQty: 0,
+    issue: null,
+    trackStock: p?.trackStock ?? true,
+  };
+  if (!p || p.status !== "active" || !p.categoryActive) return { ...base, issue: "No longer available" };
+  if (item.variantId && !v) return { ...base, issue: "This option is no longer available" };
+  if (!item.variantId && own.length) return { ...base, issue: "Choose an option" };
+  const stock = !p.trackStock ? MAX_QTY_PER_LINE : (v ? v.stock : p.stock);
+  const maxQty = Math.max(0, Math.min(MAX_QTY_PER_LINE, stock));
+  if (maxQty === 0) return { ...base, issue: "Sold out" };
+  if (item.qty > maxQty) return { ...base, maxQty, issue: `Only ${maxQty} left` };
+  return { ...base, maxQty };
+}
+
+/** A product+variant asked for twice (two tabs) counts once, with both quantities. */
+function mergeItems(items: CartItem[]) {
   const merged = new Map<string, CartItem>();
   for (const i of items) {
     const k = lineKey(i);
     const prev = merged.get(k);
     merged.set(k, prev ? { ...i, qty: Math.min(MAX_QTY_PER_LINE, prev.qty + i.qty) } : i);
   }
+  return [...merged.values()];
+}
 
-  return [...merged.values()].map((item): CartLine => {
-    const p = products.find((x) => x.id === item.productId);
-    const own = variants.filter((v) => v.productId === item.productId);
-    const v = item.variantId ? own.find((x) => x.id === item.variantId) : undefined;
-    const base: CartLine = {
-      key: lineKey(item),
-      productId: item.productId,
-      variantId: item.variantId,
-      name: p?.name ?? "Unavailable item",
-      variantLabel: v?.label ?? null,
-      categorySlug: p?.categorySlug ?? "",
-      image: p?.image ?? null,
-      unitPrice: v?.priceOverride ?? p?.price ?? 0,
-      compareAtPrice: v?.priceOverride != null ? null : (p?.compareAtPrice ?? null),
-      quantity: item.qty,
-      maxQty: 0,
+/**
+ * Live prices and stock for the items in a bag. The browser only ever sends
+ * ids and quantities; everything else comes from here. With `lock`, the
+ * product and variant rows are locked (inside a transaction) so two orders
+ * can't sell the same last piece.
+ */
+export async function priceCart(items: CartItem[], opts: { tx?: Tx; lock?: boolean } = {}): Promise<CartLine[]> {
+  const catalog = await loadCatalog([...new Set(items.map((i) => i.productId))], opts);
+  return mergeItems(items).map((item) => priceItem(item, catalog));
+}
+
+/* ───────────── Offer bundles in the bag ───────────── */
+
+export type BundlePick = {
+  productId: string;
+  variantId: string | null;
+  name: string;
+  variantLabel: string | null;
+  image: string | null;
+  categorySlug: string;
+  /** The item's normal price. */
+  listPrice: number;
+  /** Its share of the offer price (what goes on the order). */
+  price: number;
+  trackStock: boolean;
+};
+
+export type BundleLine = {
+  /** The bundle's id in the bag. */
+  id: string;
+  offerId: string;
+  slug: string;
+  title: string;
+  coverUrl: string | null;
+  /** The offer price for the whole bundle. */
+  price: number;
+  pickCount: number;
+  picks: BundlePick[];
+  /** The picks at their normal prices (to show the saving). */
+  listTotal: number;
+  /** Set when the bundle can't be bought as is. */
+  issue: string | null;
+};
+
+/**
+ * Prices a whole bag: product lines (full price) and offer bundles (offer
+ * price, split over their items). Stock is checked across both, so a piece
+ * can't be sold twice, once on its own and once in an offer.
+ */
+export async function priceBag(
+  items: CartItem[],
+  bundles: CartBundle[],
+  opts: { tx?: Tx; lock?: boolean } = {},
+): Promise<{ lines: CartLine[]; bundles: BundleLine[] }> {
+  const productIds = [...new Set([...items.map((i) => i.productId), ...bundles.flatMap((b) => b.picks.map((p) => p.productId))])];
+  const d = opts.tx ?? db();
+  const offerIds = [...new Set(bundles.map((b) => b.offerId))];
+  const [catalog, offerRows, offerProductRows] = await Promise.all([
+    loadCatalog(productIds, opts),
+    offerIds.length ? d.select().from(s.offers).where(inArray(s.offers.id, offerIds)) : Promise.resolve([]),
+    offerIds.length
+      ? d.select({ offerId: s.offerProducts.offerId, productId: s.offerProducts.productId }).from(s.offerProducts).where(inArray(s.offerProducts.offerId, offerIds))
+      : Promise.resolve([]),
+  ]);
+
+  const lines = mergeItems(items).map((item) => priceItem(item, catalog));
+
+  // What's left for offers once the product lines have their pieces.
+  const left = new Map<string, number>();
+  const stockOf = (productId: string, variantId: string | null) => {
+    const k = lineKey({ productId, variantId });
+    if (!left.has(k)) {
+      const p = catalog.products.find((x) => x.id === productId);
+      const v = variantId ? catalog.variants.find((x) => x.id === variantId) : undefined;
+      left.set(k, !p ? 0 : !p.trackStock ? Infinity : v ? v.stock : p.stock);
+    }
+    return k;
+  };
+  for (const l of lines) {
+    if (l.issue) continue;
+    const k = stockOf(l.productId, l.variantId);
+    left.set(k, left.get(k)! - l.quantity);
+  }
+
+  const now = Date.now();
+  const priced = bundles.map((b): BundleLine => {
+    const o = offerRows.find((x) => x.id === b.offerId);
+    const picks = b.picks.map((pick) => {
+      const line = priceItem({ ...pick, qty: 1 }, catalog);
+      return { line, pick };
+    });
+    const listPrices = picks.map((x) => x.line.unitPrice);
+    const shares = allocateBundle(o?.price ?? 0, listPrices);
+    const base: BundleLine = {
+      id: b.id,
+      offerId: b.offerId,
+      slug: o?.slug ?? "",
+      title: o?.title ?? "Offer",
+      coverUrl: o?.coverUrl ?? null,
+      price: o?.price ?? 0,
+      pickCount: o?.pickCount ?? b.picks.length,
+      picks: picks.map(({ line }, i) => ({
+        productId: line.productId,
+        variantId: line.variantId,
+        name: line.name,
+        variantLabel: line.variantLabel,
+        image: line.image,
+        categorySlug: line.categorySlug,
+        listPrice: line.unitPrice,
+        price: shares[i] ?? 0,
+        trackStock: line.trackStock,
+      })),
+      listTotal: listPrices.reduce((a, c) => a + c, 0),
       issue: null,
-      trackStock: p?.trackStock ?? true,
     };
-    if (!p || p.status !== "active" || !p.categoryActive) return { ...base, issue: "No longer available" };
-    if (item.variantId && !v) return { ...base, issue: "This option is no longer available" };
-    if (!item.variantId && own.length) return { ...base, issue: "Choose an option" };
-    const stock = !p.trackStock ? MAX_QTY_PER_LINE : (v ? v.stock : p.stock);
-    const maxQty = Math.max(0, Math.min(MAX_QTY_PER_LINE, stock));
-    if (maxQty === 0) return { ...base, issue: "Sold out" };
-    if (item.qty > maxQty) return { ...base, maxQty, issue: `Only ${maxQty} left` };
-    return { ...base, maxQty };
+    const live =
+      !!o && o.isActive && (!o.startsAt || o.startsAt.getTime() <= now) && (!o.expiresAt || o.expiresAt.getTime() > now);
+    if (!live) return { ...base, issue: "This offer has ended" };
+    if (b.picks.length !== o.pickCount) return { ...base, issue: `Choose ${o.pickCount} items for this offer` };
+    const allowed = new Set(offerProductRows.filter((r) => r.offerId === o.id).map((r) => r.productId));
+    const outside = picks.find(({ pick }) => !allowed.has(pick.productId));
+    if (outside) return { ...base, issue: `${outside.line.name} is no longer part of this offer` };
+    const broken = picks.find(({ line }) => line.issue && line.issue !== "Sold out");
+    if (broken) return { ...base, issue: `${broken.line.name}: ${broken.line.issue!.toLowerCase()}` };
+
+    // Stock, across the product lines and the bundles before this one.
+    const need = new Map<string, { n: number; name: string }>();
+    for (const { line } of picks) {
+      const k = stockOf(line.productId, line.variantId);
+      need.set(k, { n: (need.get(k)?.n ?? 0) + 1, name: line.name });
+    }
+    for (const [k, { n, name }] of need) {
+      const has = left.get(k)!;
+      if (has < n) return { ...base, issue: has <= 0 ? `${name} is sold out` : `Only ${has} of ${name} left` };
+    }
+    for (const [k, { n }] of need) left.set(k, left.get(k)! - n);
+    return base;
   });
+
+  return { lines, bundles: priced };
 }
 
 /** Takes the bought quantities out of stock (or puts them back with sign = 1). Products and their variants both. */

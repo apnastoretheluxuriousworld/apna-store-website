@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { MenuOverlay } from "@/components/layout/menu-overlay";
 import { MobileBottomBar } from "@/components/layout/mobile-bottom-bar";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { WhatsappFab } from "@/components/layout/whatsapp-fab";
 import { ReplyWatcher } from "@/components/feedback/reply-watcher";
 import { getStoreCategories } from "@/lib/data/categories";
 import { getStoreInfo } from "@/lib/data/settings";
@@ -29,6 +30,7 @@ export default async function StoreLayout({ children }: LayoutProps<"/">) {
           <SiteFooter categories={categories} info={storeInfo} />
         </div>
         <MobileBottomBar />
+        <WhatsappFab href={storeInfo.whatsappUrl} />
         {/* Signed-in customers: toast when the store replies to their feedback */}
         <ReplyWatcher />
         <Toaster

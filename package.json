@@ -19,7 +19,7 @@
     "test": "npm run test:db && npm run test:storage && npm run test:auth && npm run test:product",
     "admin:create": "tsx scripts/create-admin.mts",
     "test:auth": "tsx scripts/test-auth.mts",
-    "e2e": "node e2e/admin-auth.mjs && node e2e/categories.mjs && node e2e/products.mjs && node e2e/admin-cache.mjs && node e2e/store-menu.mjs && node e2e/reviews.mjs && node e2e/customer-reviews.mjs && node e2e/testimonials.mjs && node e2e/hero.mjs && node e2e/customers.mjs && node e2e/checkout.mjs && node e2e/notifications.mjs && node e2e/feedback.mjs && node e2e/forgot-pin.mjs",
+    "e2e": "node e2e/admin-auth.mjs && node e2e/categories.mjs && node e2e/products.mjs && node e2e/admin-cache.mjs && node e2e/store-menu.mjs && node e2e/reviews.mjs && node e2e/customer-reviews.mjs && node e2e/testimonials.mjs && node e2e/hero.mjs && node e2e/customers.mjs && node e2e/checkout.mjs && node e2e/notifications.mjs && node e2e/feedback.mjs && node e2e/forgot-pin.mjs && node e2e/push.mjs",
     "test:product": "tsx scripts/test-product.mts",
     "feed:import": "tsx scripts/import-feed.mts"
   },
@@ -45,6 +45,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "web-push": "^3.6.7",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -54,6 +55,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",

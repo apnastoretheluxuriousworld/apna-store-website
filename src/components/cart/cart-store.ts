@@ -8,6 +8,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { MAX_CART_LINES, MAX_QTY_PER_LINE, lineKey, type CartItem } from "@/lib/validation/checkout";
+import { MAX_BUNDLES, bundleSchema, type BundlePickInput, type CartBundle } from "@/lib/validation/offer";
 
 const KEY = "apna-bag-v1";
 const EMPTY: CartItem[] = [];
@@ -29,13 +30,32 @@ function read() {
   }
 }
 
+/*
+ * Offer bundles ("Any 3 for ₹1,000") live under their own key: each is one
+ * offer with the items the customer chose for it, priced by the server.
+ */
+const BUNDLES_KEY = "apna-offers-v1";
+const NO_BUNDLES: CartBundle[] = [];
+let bundles: CartBundle[] = NO_BUNDLES;
+
+function readBundles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BUNDLES_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((b) => bundleSchema.safeParse(b).success).slice(0, MAX_BUNDLES) : [];
+  } catch {
+    return [];
+  }
+}
+
 function load() {
   if (loaded || typeof window === "undefined") return;
   loaded = true;
   items = read();
+  bundles = readBundles();
   window.addEventListener("storage", (e) => {
-    if (e.key !== KEY) return;
-    items = read();
+    if (e.key === KEY) items = read();
+    else if (e.key === BUNDLES_KEY) bundles = readBundles();
+    else return;
     listeners.forEach((l) => l());
   });
 }
@@ -66,8 +86,43 @@ export function useCart() {
   return useSyncExternalStore(subscribe, snapshot, () => EMPTY);
 }
 
+/** Offer bundles in the bag (empty during server rendering). */
+export function useBundles() {
+  return useSyncExternalStore(subscribe, bundleSnapshot, () => NO_BUNDLES);
+}
+
+const bundleSnapshot = () => {
+  load();
+  return bundles;
+};
+
+/** Pieces in the bag: product quantities plus every item chosen in an offer. */
 export function useCartCount() {
-  return useCart().reduce((n, i) => n + i.qty, 0);
+  const n = useCart().reduce((t, i) => t + i.qty, 0);
+  return n + useBundles().reduce((t, b) => t + b.picks.length, 0);
+}
+
+function commitBundles(next: CartBundle[]) {
+  bundles = next;
+  try {
+    localStorage.setItem(BUNDLES_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode / full: the bag still works for this visit */
+  }
+  listeners.forEach((l) => l());
+}
+
+/** Adds one offer with the chosen items. Returns false when the bag already holds the most offers it can. */
+export function addBundle(offerId: string, picks: BundlePickInput[]): boolean {
+  load();
+  if (bundles.length >= MAX_BUNDLES) return false;
+  commitBundles([...bundles, { id: crypto.randomUUID(), offerId, picks: picks.map((p) => ({ productId: p.productId, variantId: p.variantId })) }]);
+  return true;
+}
+
+export function removeBundle(id: string) {
+  load();
+  commitBundles(bundles.filter((b) => b.id !== id));
 }
 
 /** Adds to the line (or creates it). Returns false when the bag can't take more. */
@@ -100,4 +155,5 @@ export function removeFromCart(key: string) {
 export function clearCart() {
   load();
   commit([]);
+  commitBundles([]);
 }

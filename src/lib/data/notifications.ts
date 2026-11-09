@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db, schema as s } from "@/lib/db";
+import { pushToAdmins } from "@/lib/push/server";
 import { signalAdmins } from "@/lib/realtime/server";
 
 export type NotificationType = (typeof s.notificationType.enumValues)[number];
@@ -34,11 +35,16 @@ export async function addNotification(n: NewNotification, tx?: Tx) {
   }
 }
 
-/** Save + tell open admin screens. Never throws: a notification must not fail a customer's order or review. */
+/** Tell open admin screens + push to the admin's phones. Call after the notification is saved (committed). */
+export async function announceToAdmins(n: NewNotification) {
+  await Promise.all([signalAdmins(), pushToAdmins(n)]);
+}
+
+/** Save + tell open admin screens + phones. Never throws: a notification must not fail a customer's order or review. */
 export async function notifyAdmins(n: NewNotification) {
   try {
     await addNotification(n);
-    await signalAdmins();
+    await announceToAdmins(n);
   } catch (e) {
     console.error("[notifyAdmins]", e);
   }
@@ -59,7 +65,7 @@ export async function notifyAdminsGrouped(n: NewNotification) {
       .where(and(eq(s.adminNotifications.href, n.href), isNull(s.adminNotifications.readAt)))
       .returning({ id: s.adminNotifications.id });
     if (!updated) await addNotification(n);
-    await signalAdmins();
+    await announceToAdmins(n); // same href → same push tag: the phone shows one notification per chat
   } catch (e) {
     console.error("[notifyAdminsGrouped]", e);
   }

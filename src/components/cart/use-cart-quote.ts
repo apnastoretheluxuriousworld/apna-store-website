@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { quoteCart, type CartQuote } from "@/app/(store)/checkout/actions";
 import { codBlockReason, computeTotals, lineKey, type CartItem } from "@/lib/validation/checkout";
-import { useCart } from "./cart-store";
+import type { CartBundle } from "@/lib/validation/offer";
+import { useBundles, useCart } from "./cart-store";
 
 const noopSubscribe = () => () => {};
 
 export type BagLine = CartQuote["lines"][number] & { item: CartItem };
+export type BagBundle = CartQuote["bundles"][number];
 
 /**
  * The bag with live prices and stock from the server. Re-asks the server when
@@ -16,15 +18,20 @@ export type BagLine = CartQuote["lines"][number] & { item: CartItem };
  */
 export function useCartQuote() {
   const items = useCart();
+  const bundleItems = useBundles();
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fetchedFor, setFetchedFor] = useState<string | null>(null);
 
-  const keys = useMemo(() => items.map(lineKey).sort().join(","), [items]);
+  const keys = useMemo(
+    () => [...items.map(lineKey).sort(), ...bundleItems.map((b) => `offer:${b.id}`)].join(","),
+    [items, bundleItems],
+  );
+  const empty = items.length === 0 && bundleItems.length === 0;
 
-  const refresh = useCallback(async (list: CartItem[], forKeys: string) => {
-    if (!list.length) return;
-    const res = await quoteCart(list);
+  const refresh = useCallback(async (list: CartItem[], offers: CartBundle[], forKeys: string) => {
+    if (!list.length && !offers.length) return;
+    const res = await quoteCart(list, offers);
     if (res.ok) {
       setQuote(res.data);
       setError(null);
@@ -34,9 +41,9 @@ export function useCartQuote() {
 
   useEffect(() => {
     // Quantities don't change which lines exist, so only re-ask when the set of lines does.
-    if (!items.length) return;
+    if (empty) return;
     let live = true;
-    void quoteCart(items).then((res) => {
+    void quoteCart(items, bundleItems).then((res) => {
       if (!live) return;
       if (res.ok) {
         setQuote(res.data);
@@ -51,10 +58,10 @@ export function useCartQuote() {
   }, [keys]);
 
   useEffect(() => {
-    const onFocus = () => document.visibilityState === "visible" && void refresh(items, keys);
+    const onFocus = () => document.visibilityState === "visible" && void refresh(items, bundleItems, keys);
     document.addEventListener("visibilitychange", onFocus);
     return () => document.removeEventListener("visibilitychange", onFocus);
-  }, [items, keys, refresh]);
+  }, [items, bundleItems, keys, refresh]);
 
   const lines: BagLine[] = useMemo(() => {
     if (!quote) return [];
@@ -71,23 +78,36 @@ export function useCartQuote() {
 
   // The bag lives in localStorage: until hydration we can't tell "empty" from "not read yet".
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  // Offer bundles as priced by the server, in the bag's order.
+  const bundles = useMemo(
+    () => (quote ? bundleItems.flatMap((b) => quote.bundles.filter((q) => q.id === b.id)) : []),
+    [bundleItems, quote],
+  );
+
   const settings = quote?.settings ?? null;
-  const subtotal = lines.filter((l) => !l.issue).reduce((n, l) => n + l.unitPrice * l.quantity, 0);
+  /** Regular items only: what a coupon works on. */
+  const itemsSubtotal = lines.filter((l) => !l.issue).reduce((n, l) => n + l.unitPrice * l.quantity, 0);
+  const subtotal = itemsSubtotal + bundles.filter((b) => !b.issue).reduce((n, b) => n + b.price, 0);
   // Bag totals before a payment method is chosen (checkout adds the COD charge itself).
   const totals = settings ? computeTotals(subtotal, settings) : { subtotal, shippingFee: 0, codFee: 0, total: subtotal };
-  const hasIssues = lines.some((l) => l.issue);
+  const hasIssues = lines.some((l) => l.issue) || bundles.some((b) => b.issue);
 
   return {
     items,
+    bundleItems,
     lines,
+    bundles,
+    itemsSubtotal,
+    /** Nothing in the bag (no products and no offers). */
+    empty,
     settings,
     totals,
     hasIssues,
     codBlocked: settings ? codBlockReason(totals.total, settings) : null,
     /** True until the server has answered for the current set of lines. */
-    loading: items.length > 0 && fetchedFor !== keys,
-    ready: hydrated && (items.length === 0 || fetchedFor !== null),
+    loading: !empty && fetchedFor !== keys,
+    ready: hydrated && (empty || fetchedFor !== null),
     error,
-    refresh: () => refresh(items, keys),
+    refresh: () => refresh(items, bundleItems, keys),
   };
 }

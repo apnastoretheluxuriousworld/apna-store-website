@@ -77,6 +77,7 @@ export const metadata: Metadata = {
     icon: "/brand/icon-192.png",
     apple: "/brand/icon-512.png",
   },
+  appleWebApp: { capable: true, title: site.name, statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
