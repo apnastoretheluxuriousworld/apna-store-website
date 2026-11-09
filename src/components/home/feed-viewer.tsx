@@ -161,7 +161,7 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
           onClick={close}
           aria-label="Close"
           autoFocus
-          className="pointer-events-auto grid size-11 place-items-center rounded-full bg-black/40 text-ivory backdrop-blur hover:text-gold-300"
+          className="pointer-events-auto grid size-11 place-items-center rounded-full bg-black/60 text-ivory hover:text-gold-300"
         >
           <X className="size-5" />
         </button>
@@ -172,7 +172,7 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
           type="button"
           onClick={() => setMuted((m) => !m)}
           aria-label={muted ? "Unmute" : "Mute"}
-          className="pointer-events-auto grid size-11 place-items-center rounded-full bg-black/40 text-ivory backdrop-blur hover:text-gold-300"
+          className="pointer-events-auto grid size-11 place-items-center rounded-full bg-black/60 text-ivory hover:text-gold-300"
         >
           {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
         </button>
@@ -298,7 +298,7 @@ function Slide({
             aria-label="Play"
             className="absolute inset-0 grid place-items-center bg-black/20"
           >
-            <span className="grid size-16 place-items-center rounded-full border border-gold-400/60 bg-black/50 backdrop-blur">
+            <span className="grid size-16 place-items-center rounded-full border border-gold-400/60 bg-black/65">
               <Play className="ml-1 size-6 fill-gold-400 text-gold-400" />
             </span>
           </button>

@@ -34,7 +34,6 @@ export type FeedUpload = { videoUrl: string; posterUrl: string | null; warning?:
  */
 export async function uploadFeedVideo(file: File, onProgress: (pct: number) => void): Promise<FeedUpload> {
   if (!VIDEO_TYPES.split(",").includes(file.type)) throw new Error("Use an MP4, WebM or MOV video");
-  if (file.size > VIDEO_MAX_MB * 1024 * 1024) throw new Error(`Videos can be at most ${VIDEO_MAX_MB} MB`);
   const size = await videoSize(file);
   let warning: string | undefined;
   if (size) {

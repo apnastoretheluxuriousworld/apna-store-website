@@ -30,11 +30,11 @@ const BRAND_SLIDE: HeroSlide = {
 };
 
 /**
- * Homepage hero carousel: the banners from Admin → Hero banners (starts with one
- * per collection). Phones: full-width image with the text and button over it.
- * Desktop: text on the left, image on the right fading into the black.
- * Autoplays every 5s (the timer restarts after a swipe or dot tap), swipes on
- * touch, and keys ←/→ when focused.
+ * Homepage hero carousel: the banners from Admin → Hero banners. Each banner is a
+ * landscape (16:9) image shown whole, edge to edge, below the fixed header.
+ * Phones: text and button under the image. Desktop: text over the image's left
+ * side on a dark fade. Autoplays every 5s (the timer restarts after a swipe or
+ * dot tap), swipes on touch, and keys ←/→ when focused.
  */
 export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
   const slides = fromDb.length > 0 ? fromDb : [BRAND_SLIDE];
@@ -57,9 +57,8 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
     target: ref,
     offset: ["start start", "end start"],
   });
-  const visualY = useTransform(scrollYProgress, [0, 1], ["0%", "14%"]);
-  const textY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const visualY = useTransform(scrollYProgress, [0, 1], ["0%", "10%"]);
+  const fade = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (count < 2) return;
@@ -79,162 +78,173 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
         if (e.key === "ArrowRight") go(index + 1, 1);
         if (e.key === "ArrowLeft") go(index - 1, -1);
       }}
-      className="grain relative isolate flex min-h-[88svh] flex-col overflow-hidden bg-ink-950 outline-none lg:min-h-[82vh]"
+      className="grain relative isolate overflow-hidden bg-ink-950 pt-16 outline-none lg:pt-24"
     >
-      {/* Light: slow-rotating golden rays + warm glow behind the centred cover */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute top-[42%] left-1/2 size-[150vw] max-h-350 max-w-350 -translate-x-1/2 -translate-y-1/2 lg:size-[85vw]">
-          <motion.div
-            className="size-full rounded-full opacity-40 blur-2xl mask-[radial-gradient(circle,black_10%,transparent_65%)]"
-            style={{
-              background:
-                "repeating-conic-gradient(from 0deg, rgba(245,215,122,0.35) 0deg 2deg, transparent 2deg 14deg)",
-            }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 120, ease: "linear", repeat: Infinity }}
-          />
-        </div>
-        <div className="absolute top-[42%] left-1/2 size-[95vw] max-h-200 max-w-200 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.26),rgba(184,134,11,0.08)_40%,transparent_70%)] lg:size-[55vw]" />
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-linear-to-t from-ink-900 to-transparent" />
-      </div>
-
-      {/* Swipe surface: the full-width cover image, below the fixed header */}
-      <motion.div
-        style={{ y: visualY }}
-        drag={count > 1 ? "x" : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.15}
-        onDragEnd={onDragEnd}
-        className="absolute inset-x-0 top-16 bottom-[26%] cursor-grab touch-pan-y active:cursor-grabbing lg:top-28 lg:right-12 lg:bottom-16 lg:left-[45%]"
-      >
-        <AnimatePresence initial={false} custom={dir} mode="popLayout">
-          <motion.div
-            key={slide.key}
-            custom={dir}
-            variants={{
-              enter: (d: number) => ({
-                opacity: 0,
-                x: d * 60,
-                scale: 1.04,
-                filter: "blur(10px)",
-              }),
-              center: { opacity: 1, x: 0, scale: 1, filter: "blur(0px)" },
-              exit: (d: number) => ({
-                opacity: 0,
-                x: d * -60,
-                scale: 0.97,
-                filter: "blur(10px)",
-              }),
-            }}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 1, ease }}
-            className="absolute inset-0 mask-[linear-gradient(to_bottom,black_75%,transparent)] lg:[mask-composite:intersect] lg:[mask-image:linear-gradient(to_right,transparent,black_25%,black_85%,transparent),linear-gradient(to_bottom,transparent,black_12%,black_80%,transparent)]"
-          >
-            <Image
-              src={slide.image}
-              alt={[slide.eyebrow, slide.title, slide.highlight]
-                .filter(Boolean)
-                .join(" ")}
-              fill
-              priority={index === 0}
-              draggable={false}
-              sizes="(min-width: 1024px) 55vw, 100vw"
-              className="pointer-events-none object-cover select-none"
-            />
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Keep the overlaid copy legible */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-ink-950 via-ink-950/85 to-transparent lg:hidden"
-      />
-
-      {/* Copy: centred over the image on phones, left column on desktop */}
-      <motion.div
-        style={{ y: textY, opacity: fade }}
-        className="relative z-10 mx-auto mt-auto w-full max-w-site px-6 pb-20 lg:my-auto lg:px-12 lg:pt-24 lg:pb-0"
-      >
-        <div className="mx-auto flex max-w-2xl flex-col items-center text-center lg:mx-0 lg:max-w-[40%] lg:items-start lg:text-left">
-          <AnimatePresence mode="wait" initial={false}>
+      {/* Landscape banner: whole image, full width */}
+      <div className="relative aspect-video w-full overflow-hidden lg:max-h-[calc(100svh-6rem)]">
+        <motion.div
+          style={{ y: visualY }}
+          drag={count > 1 ? "x" : false}
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.15}
+          onDragEnd={onDragEnd}
+          className="absolute inset-0 cursor-grab touch-pan-y active:cursor-grabbing"
+        >
+          <AnimatePresence initial={false} custom={dir} mode="popLayout">
             <motion.div
               key={slide.key}
-              className="flex flex-col items-center lg:items-start"
-              initial="hidden"
-              animate="show"
-              exit="out"
+              custom={dir}
               variants={{
-                hidden: {},
-                show: {
-                  transition: { staggerChildren: 0.08, delayChildren: 0.15 },
-                },
-                out: { opacity: 0, y: -8, transition: { duration: 0.3 } },
+                enter: (d: number) => ({ opacity: 0, x: d * 60, scale: 1.03 }),
+                center: { opacity: 1, x: 0, scale: 1 },
+                exit: (d: number) => ({ opacity: 0, x: d * -60, scale: 0.98 }),
               }}
-              aria-live="polite"
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.8, ease }}
+              className="absolute inset-0 will-change-transform"
             >
-              {slide.eyebrow && (
-                <Item>
-                  <p className="eyebrow mb-4">{slide.eyebrow}</p>
-                </Item>
-              )}
-              <Item>
-                <h1 className="font-serif text-[2.75rem] leading-[1.02] font-light text-ivory sm:text-6xl xl:text-[5rem]">
-                  {slide.title}
-                  {slide.title && slide.highlight && <br />}
-                  {slide.highlight && (
-                    <em className="text-gold font-normal">{slide.highlight}</em>
-                  )}
-                </h1>
-              </Item>
-              {slide.subtitle && (
-                <Item>
-                  <p className="mt-4 max-w-xs text-sm leading-relaxed text-stone sm:max-w-md lg:text-base">
-                    {slide.subtitle}
-                  </p>
-                </Item>
-              )}
-              {slide.ctaHref && (
-                <Item>
-                  <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                    <ButtonLink href={slide.ctaHref} size="lg">
-                      {slide.ctaLabel || "Shop now"}
-                    </ButtonLink>
-                  </div>
-                </Item>
-              )}
+              <Image
+                src={slide.image}
+                alt={[slide.eyebrow, slide.title, slide.highlight]
+                  .filter(Boolean)
+                  .join(" ")}
+                fill
+                priority={index === 0}
+                draggable={false}
+                sizes="100vw"
+                className="pointer-events-none object-cover select-none"
+              />
             </motion.div>
           </AnimatePresence>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      {/* Dots, centred */}
-      {count > 1 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-10 mx-auto flex max-w-site items-center justify-center px-6 lg:px-12">
-          {slides.map((s, i) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => go(i, i > index ? 1 : -1)}
-              aria-label={`Show slide ${i + 1}`}
-              aria-current={i === index}
-              className="pointer-events-auto grid h-6 place-items-center px-1"
-            >
-              <span
-                className={cn(
-                  "block h-1.5 rounded-full transition-all duration-500",
-                  i === index
-                    ? "bg-gold w-5"
-                    : "w-1.5 bg-ivory/25 hover:bg-ivory/50",
-                )}
-              />
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Blend into the page; on desktop also darken the left for the copy */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-linear-to-t from-ink-950 to-transparent lg:h-1/3"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 hidden w-3/5 bg-linear-to-r from-ink-950/90 via-ink-950/55 to-transparent lg:block"
+        />
+
+        {/* Desktop copy, over the image */}
+        <motion.div
+          style={{ opacity: fade }}
+          className="pointer-events-none absolute inset-0 mx-auto hidden w-full max-w-site items-center px-12 lg:flex"
+        >
+          <div className="max-w-[42%]">
+            <Copy slide={slide} desktop />
+          </div>
+        </motion.div>
+
+        <Dots count={count} index={index} slides={slides} go={go} className="bottom-3 lg:bottom-6" />
+      </div>
+
+      {/* Phone copy, under the image */}
+      <div className="px-6 pt-4 pb-12 lg:hidden">
+        <Copy slide={slide} />
+      </div>
     </section>
+  );
+}
+
+function Copy({ slide, desktop }: { slide: HeroSlide; desktop?: boolean }) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={slide.key}
+        className={cn(
+          "flex flex-col",
+          desktop ? "items-start text-left" : "items-center text-center",
+        )}
+        initial="hidden"
+        animate="show"
+        exit="out"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+          out: { opacity: 0, y: -8, transition: { duration: 0.3 } },
+        }}
+        aria-live={desktop ? "polite" : undefined}
+      >
+        {slide.eyebrow && (
+          <Item>
+            <p className="eyebrow mb-3 lg:mb-4">{slide.eyebrow}</p>
+          </Item>
+        )}
+        <Item>
+          {/* One h1 per page: the phone copy is hidden on desktop and vice versa */}
+          <h1 className="font-serif text-[2.25rem] leading-[1.05] font-light text-ivory sm:text-5xl lg:text-6xl xl:text-7xl">
+            {slide.title}
+            {slide.title && slide.highlight && <br />}
+            {slide.highlight && (
+              <em className="text-gold font-normal">{slide.highlight}</em>
+            )}
+          </h1>
+        </Item>
+        {slide.subtitle && (
+          <Item>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-stone lg:mt-4 lg:text-base">
+              {slide.subtitle}
+            </p>
+          </Item>
+        )}
+        {slide.ctaHref && (
+          <Item>
+            <div className="pointer-events-auto mt-6 lg:mt-7">
+              <ButtonLink href={slide.ctaHref} size="lg">
+                {slide.ctaLabel || "Shop now"}
+              </ButtonLink>
+            </div>
+          </Item>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function Dots({
+  count,
+  index,
+  slides,
+  go,
+  className,
+}: {
+  count: number;
+  index: number;
+  slides: HeroSlide[];
+  go: (next: number, d: number) => void;
+  className?: string;
+}) {
+  if (count < 2) return null;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-x-0 z-10 flex items-center justify-center",
+        className,
+      )}
+    >
+      {slides.map((s, i) => (
+        <button
+          key={s.key}
+          type="button"
+          onClick={() => go(i, i > index ? 1 : -1)}
+          aria-label={`Show slide ${i + 1}`}
+          aria-current={i === index}
+          className="pointer-events-auto grid h-6 place-items-center px-1"
+        >
+          <span
+            className={cn(
+              "block h-1.5 rounded-full transition-all duration-500",
+              i === index ? "bg-gold w-5" : "w-1.5 bg-ivory/30 hover:bg-ivory/60",
+            )}
+          />
+        </button>
+      ))}
+    </div>
   );
 }
 

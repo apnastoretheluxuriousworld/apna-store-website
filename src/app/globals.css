@@ -134,18 +134,33 @@ body {
   }
 }
 
+/* Hero light rays: a CSS animation of transform only, so the GPU rotates the
+   already-drawn layer instead of JavaScript redrawing the blurred disc each frame. */
+.hero-rays {
+  animation: hero-rays-spin 120s linear infinite;
+  will-change: transform;
+}
+@keyframes hero-rays-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-rays { animation: none; }
+}
+
 /* ───────────── Page transitions (React <ViewTransition>) ───────────── */
+/* Short and blur-free: the browser ignores taps while this runs, and blurring a
+   full-screen snapshot is slow on phones. */
 ::view-transition-old(.page) {
-  animation: 220ms var(--ease-luxe) both page-out;
+  animation: 120ms ease-out both page-out;
 }
 ::view-transition-new(.page) {
-  animation: 520ms var(--ease-luxe) 120ms both page-in;
+  animation: 240ms var(--ease-luxe) 40ms both page-in;
 }
 @keyframes page-out {
-  to { opacity: 0; transform: translateY(-8px); filter: blur(4px); }
+  to { opacity: 0; }
 }
 @keyframes page-in {
-  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  from { opacity: 0; transform: translateY(8px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

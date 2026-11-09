@@ -345,7 +345,7 @@ function Card({
           }}
           aria-label={sound ? "Mute" : "Unmute"}
           aria-pressed={sound}
-          className="absolute top-3 right-3 z-10 grid size-10 place-items-center rounded-full border border-gold-400/50 bg-ink-950/60 text-gold-300 backdrop-blur transition-colors hover:text-gold-200"
+          className="absolute top-3 right-3 z-10 grid size-10 place-items-center rounded-full border border-gold-400/50 bg-ink-950/75 text-gold-300 transition-colors hover:text-gold-200"
         >
           {sound ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
         </button>

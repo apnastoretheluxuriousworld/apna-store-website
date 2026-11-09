@@ -150,7 +150,7 @@ export function OfferPicker({ offer, products }: { offer: OfferInfo; products: S
       {/* (One row on phones, so it fits where the WhatsApp button already makes room for a sticky bar.) */}
       <div className="mt-6 hidden lg:block">{tray(false)}</div>
       <div
-        className="fixed inset-x-0 z-40 border-t border-gold-500/15 bg-ink-950/95 px-4 py-2.5 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 z-40 border-t border-gold-500/15 bg-ink-950/[0.97] px-4 py-2.5 lg:hidden"
         style={{ bottom: "calc(var(--bottom-bar-h) + env(safe-area-inset-bottom))" }}
       >
         {tray(true)}

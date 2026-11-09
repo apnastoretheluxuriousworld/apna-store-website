@@ -5,6 +5,7 @@ import { Film, ImagePlus, Loader2, Play, Video, X } from "lucide-react";
 import { discardReviewUpload, getReviewUploadUrl } from "@/app/(store)/account/reviews/actions";
 import type { ReviewMedia } from "@/lib/db/schema";
 import { capturePoster, prepareImage, putWithProgress } from "@/lib/upload-client";
+import { compressVideo } from "@/lib/compress-video";
 import { CUSTOMER_REVIEW_LIMITS } from "@/lib/validation/review";
 import { cn } from "@/lib/utils";
 import { SIGNED_OUT_ERROR, goToSignIn } from "@/lib/auth/signed-out";
@@ -29,9 +30,11 @@ async function uploadPhoto(file: File, onProgress: (pct: number) => void): Promi
 
 async function uploadVideo(file: File, onProgress: (pct: number) => void): Promise<ReviewMedia> {
   if (!VIDEO_TYPES.includes(file.type)) throw new Error("Please choose an MP4, MOV or WebM video");
-  if (file.size > VIDEO_MAX_MB * 1024 * 1024) throw new Error(`The video can be at most ${VIDEO_MAX_MB} MB`);
   const posterBlob = await capturePoster(file);
-  const url = await uploadBlob(file, onProgress);
+  // Shrink to 720p first (progress 0–40%), so big phone clips fit and upload fast on mobile data.
+  const small = await compressVideo(file, (p) => onProgress(Math.round(p * 0.4)));
+  if (small.size > VIDEO_MAX_MB * 1024 * 1024) throw new Error(`The video can be at most ${VIDEO_MAX_MB} MB`);
+  const url = await uploadBlob(small, (p) => onProgress(40 + Math.round(p * 0.6)));
   const poster = posterBlob ? await uploadBlob(posterBlob, () => {}).catch(() => null) : null;
   return { type: "video", url, poster };
 }

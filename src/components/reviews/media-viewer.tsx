@@ -22,7 +22,7 @@ export function MediaThumb({ item, sizes = "96px", className }: { item: ReviewMe
       )}
       {item.type === "video" && (
         <span className="absolute inset-0 grid place-items-center bg-ink-950/25">
-          <span className="grid size-7 place-items-center rounded-full border border-gold-400/60 bg-ink-950/60 backdrop-blur">
+          <span className="grid size-7 place-items-center rounded-full border border-gold-400/60 bg-ink-950/75">
             <Play className="ml-0.5 size-3 fill-gold-400 text-gold-400" />
           </span>
         </span>

@@ -35,7 +35,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   return (
     <ReactLenis
       root
-      options={{ lerp: 0.09, smoothWheel: true, syncTouch: false }}
+      options={{ lerp: 0.12, smoothWheel: true, syncTouch: false }}
     >
       <Suspense fallback={null}>
         <ScrollReset />

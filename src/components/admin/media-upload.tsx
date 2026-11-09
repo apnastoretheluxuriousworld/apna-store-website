@@ -7,6 +7,7 @@ import { MediaLightbox, MediaThumb } from "@/components/reviews/media-viewer";
 import type { ReviewMedia } from "@/lib/db/schema";
 import { mediaTypeFromUrl } from "@/lib/validation/review";
 import { capturePoster } from "@/lib/upload-client";
+import { compressVideo } from "@/lib/compress-video";
 import { putWithProgress, uploadImage, type UploadFolder } from "./image-upload";
 import { inputClass } from "./form";
 import { cn } from "@/lib/utils";
@@ -32,9 +33,11 @@ export async function uploadVideo(
   posterAt?: number,
 ): Promise<ReviewMedia> {
   if (!VIDEO_TYPES.split(",").includes(file.type)) throw new Error("Use an MP4, WebM or MOV video");
-  if (file.size > VIDEO_MAX_MB * 1024 * 1024) throw new Error(`Videos can be at most ${VIDEO_MAX_MB} MB`);
   const posterBlob = await capturePoster(file, posterAt);
-  const url = await uploadBlob(file, folder, onProgress);
+  // Shrink to 720p first (progress 0–40%), then upload (40–100%).
+  const small = await compressVideo(file, (p) => onProgress(Math.round(p * 0.4)));
+  if (small.size > VIDEO_MAX_MB * 1024 * 1024) throw new Error(`Videos can be at most ${VIDEO_MAX_MB} MB`);
+  const url = await uploadBlob(small, folder, (p) => onProgress(40 + Math.round(p * 0.6)));
   const poster = posterBlob ? await uploadBlob(posterBlob, folder, () => {}).catch(() => null) : null;
   return { type: "video", url, poster };
 }

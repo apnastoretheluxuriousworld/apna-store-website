@@ -239,7 +239,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
       <AnimatePresence>
         {showSticky && !soldOut && (
           <motion.div
-            className="fixed inset-x-0 z-40 border-t border-gold-500/15 bg-ink-950/95 px-4 py-2.5 backdrop-blur-xl lg:hidden"
+            className="fixed inset-x-0 z-40 border-t border-gold-500/15 bg-ink-950/[0.97] px-4 py-2.5 lg:hidden"
             style={{ bottom: "calc(var(--bottom-bar-h) + env(safe-area-inset-bottom))" }}
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

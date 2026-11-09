@@ -52,7 +52,7 @@ function BottomBarView({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-50 transform-gpu border-t border-gold-500/15 bg-ink-950/90 backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 transform-gpu border-t border-gold-500/15 bg-ink-950/[0.97] lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto grid h-(--bottom-bar-h) max-w-md grid-cols-5">

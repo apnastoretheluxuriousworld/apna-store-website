@@ -36,10 +36,10 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-30 transition-[background-color,backdrop-filter,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "fixed inset-x-0 top-0 z-30 transition-[background-color,translate] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
         hidden && "max-lg:-translate-y-full",
         scrolled
-          ? "bg-ink-950/80 backdrop-blur-xl"
+          ? "bg-ink-950/95"
           : "bg-linear-to-b from-ink-950/80 to-transparent",
       )}
       style={{ paddingTop: "env(safe-area-inset-top)" }}

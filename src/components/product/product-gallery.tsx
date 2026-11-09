@@ -80,7 +80,7 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
 
         {media.length > 1 && (
           <>
-            <span className="pointer-events-none absolute right-3 bottom-3 rounded-full bg-ink-950/70 px-2.5 py-1 text-[0.65rem] tracking-wider text-ivory/90 tabular-nums backdrop-blur lg:hidden">
+            <span className="pointer-events-none absolute right-3 bottom-3 rounded-full bg-ink-950/80 px-2.5 py-1 text-[0.65rem] tracking-wider text-ivory/90 tabular-nums lg:hidden">
               {index + 1} / {media.length}
             </span>
             <div className="pointer-events-none absolute inset-x-0 bottom-3.5 flex justify-center gap-1.5 lg:hidden">
@@ -95,7 +95,7 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
             <ArrowButton side="right" disabled={index === media.length - 1} onClick={() => goTo(index + 1)} />
           </>
         )}
-        <span className="pointer-events-none absolute top-3 right-3 hidden size-9 place-items-center rounded-full bg-ink-950/60 text-ivory/80 backdrop-blur lg:grid">
+        <span className="pointer-events-none absolute top-3 right-3 hidden size-9 place-items-center rounded-full bg-ink-950/75 text-ivory/80 lg:grid">
           <Expand className="size-4" strokeWidth={1.5} />
         </span>
       </div>
@@ -149,7 +149,7 @@ function ArrowButton({ side, disabled, onClick }: { side: "left" | "right"; disa
       disabled={disabled}
       aria-label={side === "left" ? "Previous" : "Next"}
       className={cn(
-        "absolute top-1/2 hidden size-10 -translate-y-1/2 place-items-center rounded-full border border-gold-500/30 bg-ink-950/70 text-ivory backdrop-blur transition-opacity hover:text-gold-300 disabled:opacity-0 lg:grid",
+        "absolute top-1/2 hidden size-10 -translate-y-1/2 place-items-center rounded-full border border-gold-500/30 bg-ink-950/80 text-ivory transition-opacity hover:text-gold-300 disabled:opacity-0 lg:grid",
         side === "left" ? "left-3" : "right-3",
       )}
     >

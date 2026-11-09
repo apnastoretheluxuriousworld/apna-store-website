@@ -45,7 +45,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
       <button
         type="button"
         aria-label={`Add ${product.name} to wishlist`}
-        className="absolute top-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-ink-950/60 text-ivory/70 backdrop-blur transition-colors hover:text-gold-400"
+        className="absolute top-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-ink-950/75 text-ivory/70 transition-colors hover:text-gold-400"
       >
         <Heart className="size-4" strokeWidth={1.5} />
       </button>
