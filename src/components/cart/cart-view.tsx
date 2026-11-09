@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { removeBundle, removeFromCart, setCartQty } from "./cart-store";
 import { useCartQuote, type BagBundle, type BagLine } from "./use-cart-quote";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 export function CartView() {
   const { lines, bundles, totals, settings, hasIssues, loading, ready, error, empty } = useCartQuote();
@@ -271,20 +272,5 @@ function BundleRow({ bundle: b }: { bundle: BagBundle }) {
 }
 
 export function CartSkeleton() {
-  return (
-    <div className="grid animate-pulse gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10" aria-busy="true" aria-label="Loading your cart">
-      <div className="space-y-3">
-        {[0, 1].map((i) => (
-          <div key={i} className="flex gap-4 rounded-2xl border border-ink-600/60 bg-ink-850 p-4">
-            <div className="aspect-4/5 w-24 rounded-lg bg-ink-800" />
-            <div className="flex-1 space-y-2 pt-1">
-              <div className="h-3 w-2/3 rounded bg-ink-800" />
-              <div className="h-3 w-1/4 rounded bg-ink-800" />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="h-64 rounded-2xl bg-ink-850" />
-    </div>
-  );
+  return <PageLoader label="Loading your cart" />;
 }

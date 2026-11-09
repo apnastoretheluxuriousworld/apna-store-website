@@ -15,6 +15,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -619,4 +620,21 @@ export const messages = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.conversationId, t.createdAt)],
+).enableRLS();
+
+/**
+ * Store traffic for the dashboard: one row per anonymous browser per day (India
+ * time). `visitorId` is a random id the browser made up — no name, phone or IP.
+ * Visitors in a period = distinct visitorIds; page views = sum of `views`.
+ */
+export const siteVisits = pgTable(
+  "site_visits",
+  {
+    day: date().notNull(),
+    visitorId: uuid().notNull(),
+    /** "mobile" | "desktop" */
+    device: text().notNull(),
+    views: integer().notNull().default(1),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.visitorId] })],
 ).enableRLS();

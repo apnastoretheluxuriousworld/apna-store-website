@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Suspense, use, useEffect, useState, useTransition } from "react";
 import { AlertCircle, Banknote, Gift, Loader2, Lock, QrCode, ShoppingBag } from "lucide-react";
 import { placeOrder, type AppliedCoupon } from "@/app/(store)/checkout/actions";
 import { FieldError, storeInputClass } from "@/components/account/fields";
@@ -55,12 +55,44 @@ function Step({ n, title, children, aside }: { n: number; title: string; childre
   );
 }
 
-export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
+/**
+ * Opens at once with an empty form (the bag lives in this browser); the signed-in
+ * customer's name, mobile and saved address stream in and fill it — unless they
+ * have already started typing.
+ */
+export function CheckoutView({ prefill: prefillPromise }: { prefill: Promise<CheckoutPrefill> }) {
+  const [prefill, setPrefill] = useState<CheckoutPrefill | null>(null);
+  return (
+    <>
+      <Suspense fallback={null}>
+        <ResolvePrefill promise={prefillPromise} onReady={setPrefill} />
+      </Suspense>
+      <CheckoutForm prefill={prefill} />
+    </>
+  );
+}
+
+function ResolvePrefill({ promise, onReady }: { promise: Promise<CheckoutPrefill>; onReady: (p: CheckoutPrefill) => void }) {
+  const value = use(promise);
+  useEffect(() => onReady(value), [value, onReady]);
+  return null;
+}
+
+const BLANK_ADDRESS: AddressDraft = { fullName: "", phone: "", line1: "", line2: "", landmark: "", city: "", state: "", pincode: "" };
+
+function CheckoutForm({ prefill }: { prefill: CheckoutPrefill | null }) {
   const router = useRouter();
   const bag = useCartQuote();
   const { lines, bundles, settings, hasIssues } = bag;
+  const signedIn = prefill?.signedIn ?? false;
 
-  const [address, setAddress] = useState<AddressDraft>(prefill.address);
+  const [address, setAddress] = useState<AddressDraft>(BLANK_ADDRESS);
+  // Fill in the saved details when they arrive, if nothing has been typed yet.
+  const [applied, setApplied] = useState<CheckoutPrefill | null>(null);
+  if (prefill && prefill !== applied) {
+    setApplied(prefill);
+    if (Object.values(address).every((v) => !v)) setAddress(prefill.address);
+  }
   const [notes, setNotes] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
   const [method, setMethod] = useState<Method | null>(null);
@@ -196,7 +228,7 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
           n={1}
           title="Delivery details"
           aside={
-            !prefill.signedIn && (
+            !signedIn && (
               <Link href="/account/login?next=/checkout" className="text-xs text-gold-400 hover:text-gold-300">
                 Sign in
               </Link>
@@ -267,7 +299,7 @@ export function CheckoutView({ prefill }: { prefill: CheckoutPrefill }) {
               />
             </div>
           </div>
-          {prefill.signedIn && (
+          {signedIn && (
             <label className="mt-4 flex items-center gap-2.5 text-xs text-stone">
               <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} className="size-4 accent-gold-500" />
               Save this address to my account

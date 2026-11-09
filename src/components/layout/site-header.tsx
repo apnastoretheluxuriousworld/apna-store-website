@@ -7,6 +7,7 @@ import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { BagBadge } from "@/components/cart/bag-badge";
 import { useMenu } from "./menu-context";
+import { useAccountHref } from "@/lib/auth/role-hint";
 import type { NavCategory } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const HEADER_COUNT = 5;
 export function SiteHeader({ categories }: { categories: NavCategory[] }) {
   const { scrollY } = useScroll();
   const { toggle } = useMenu();
+  const accountHref = useAccountHref();
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -72,7 +74,7 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
           {iconLinks.map(({ label, href, icon: Icon }) => (
             <Link
               key={href}
-              href={href}
+              href={href === "/account" ? accountHref : href}
               aria-label={label}
               className="relative text-ivory/80 transition-colors hover:text-gold-400"
             >

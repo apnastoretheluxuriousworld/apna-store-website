@@ -13,6 +13,7 @@ import {
   validateSession,
   type SessionUser,
 } from "./core";
+import { ROLE_HINT_COOKIE } from "./role-hint-cookie";
 
 /**
  * Data Access Layer for auth. Every admin page must call requireAdminView()
@@ -114,6 +115,13 @@ export async function startSession(userId: string, role: SessionUser["role"]) {
     path: "/",
     expires: expiresAt,
   });
+  // Readable role hint for the UI (see role-hint.ts) — not a credential.
+  (await cookies()).set(ROLE_HINT_COOKIE, role, {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
 }
 
 /** Call from a Server Action to sign out. */
@@ -122,6 +130,7 @@ export async function endSession() {
   const token = jar.get(COOKIE)?.value;
   if (token) await deleteSession(db(), token);
   jar.delete(COOKIE);
+  jar.delete(ROLE_HINT_COOKIE);
 }
 
 export const SESSION_COOKIE = COOKIE;

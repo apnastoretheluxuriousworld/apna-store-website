@@ -8,6 +8,7 @@ import { OutboxStatus } from "@/components/admin/outbox";
 import { PwaSetup } from "@/components/admin/pwa";
 import { NotificationsProvider, UnreadBadge } from "@/components/admin/notifications";
 import { requireAdminView } from "@/lib/auth/session";
+import { AdminRoleHint } from "@/lib/auth/role-hint";
 import { countPendingReviews } from "@/lib/data/reviews";
 import { countUnreadConversations } from "@/lib/data/feedback";
 
@@ -19,7 +20,12 @@ export const metadata: Metadata = {
 /** Gate for the panel content. Pages ALSO call requireAdminView() themselves. */
 async function AdminGate({ children }: { children: React.ReactNode }) {
   await requireAdminView();
-  return children;
+  return (
+    <>
+      {children}
+      <AdminRoleHint />
+    </>
+  );
 }
 
 async function UserBadge() {

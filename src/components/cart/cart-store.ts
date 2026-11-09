@@ -81,6 +81,12 @@ const snapshot = () => {
   return items;
 };
 
+/** The bag right now, outside React (e.g. to start pricing it before navigating). */
+export function getBagSnapshot() {
+  load();
+  return { items, bundles };
+}
+
 /** The bag's lines (empty during server rendering). */
 export function useCart() {
   return useSyncExternalStore(subscribe, snapshot, () => EMPTY);

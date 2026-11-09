@@ -1,4 +1,4 @@
-import { ViewTransition } from "react";
+import { Suspense, ViewTransition } from "react";
 import { Toaster } from "sonner";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import { MenuProvider } from "@/components/layout/menu-context";
@@ -8,6 +8,7 @@ import { MobileBottomBar } from "@/components/layout/mobile-bottom-bar";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { WhatsappFab } from "@/components/layout/whatsapp-fab";
 import { ReplyWatcher } from "@/components/feedback/reply-watcher";
+import { VisitTracker } from "@/components/layout/visit-tracker";
 import { getStoreCategories } from "@/lib/data/categories";
 import { getStoreInfo } from "@/lib/data/settings";
 
@@ -33,6 +34,10 @@ export default async function StoreLayout({ children }: LayoutProps<"/">) {
         <WhatsappFab href={storeInfo.whatsappUrl} />
         {/* Signed-in customers: toast when the store replies to their feedback */}
         <ReplyWatcher />
+        {/* Store traffic for the dashboard; reads the URL, so it streams in */}
+        <Suspense fallback={null}>
+          <VisitTracker />
+        </Suspense>
         <Toaster
           theme="dark"
           position="top-center"

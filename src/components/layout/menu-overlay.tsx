@@ -6,6 +6,8 @@ import { useLenis } from "lenis/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { ArrowUpRight, ChevronRight, Search, User, X } from "lucide-react";
 import { useMenu } from "./menu-context";
+import { isPlainClick } from "@/lib/use-tapped-path";
+import { useAccountHref } from "@/lib/auth/role-hint";
 import { Emblem } from "@/components/brand/logo";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { ButtonLink } from "@/components/ui/button";
@@ -35,7 +37,7 @@ function useIsDesktop() {
 
 /** Mobile: compact bottom sheet. Desktop: full right-side sidebar. */
 export function MenuOverlay({ categories }: { categories: NavCategory[] }) {
-  const { open, shown, close, onClosed } = useMenu();
+  const { open, shown, close, go, onClosed } = useMenu();
   const lenis = useLenis();
   const desktop = useIsDesktop();
 
@@ -76,9 +78,9 @@ export function MenuOverlay({ categories }: { categories: NavCategory[] }) {
             aria-hidden
           />
           {desktop ? (
-            <DesktopSidebar key="sidebar" onClose={close} categories={categories} />
+            <DesktopSidebar key="sidebar" onClose={close} onLink={go} categories={categories} />
           ) : (
-            <MobileSheet key="sheet" onClose={close} categories={categories} />
+            <MobileSheet key="sheet" onClose={close} onLink={go} categories={categories} />
           )}
         </>
       )}
@@ -94,9 +96,19 @@ const item = {
   show: { opacity: 1, x: 0, transition: { duration: 0.6, ease } },
 };
 
-function DesktopSidebar({ onClose, categories }: { onClose: () => void; categories: NavCategory[] }) {
+/** Any link tapped inside the menu closes it at once, while the next page loads. */
+const closeOnLink = (onLink: (href: string) => void) => (e: React.MouseEvent) => {
+  const a = (e.target as HTMLElement).closest("a[href]");
+  const href = a?.getAttribute("href");
+  if (href?.startsWith("/") && isPlainClick(e)) onLink(href);
+};
+
+type PanelProps = { onClose: () => void; onLink: (href: string) => void; categories: NavCategory[] };
+
+function DesktopSidebar({ onClose, onLink, categories }: PanelProps) {
   return (
     <motion.aside
+      onClick={closeOnLink(onLink)}
       id="site-menu"
       role="dialog"
       aria-modal="true"
@@ -174,7 +186,8 @@ function DesktopSidebar({ onClose, categories }: { onClose: () => void; categori
 
 /* ─────────────── Mobile: compact bottom sheet ─────────────── */
 
-function MobileSheet({ onClose, categories }: { onClose: () => void; categories: NavCategory[] }) {
+function MobileSheet({ onClose, onLink, categories }: PanelProps) {
+  const accountHref = useAccountHref();
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > 80 || info.velocity.y > 500) onClose();
   };
@@ -191,6 +204,7 @@ function MobileSheet({ onClose, categories }: { onClose: () => void; categories:
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={{ duration: 0.45, ease }}
+      onClick={closeOnLink(onLink)}
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0, bottom: 0.6 }}
@@ -232,7 +246,7 @@ function MobileSheet({ onClose, categories }: { onClose: () => void; categories:
       <div className="hairline my-5 opacity-30" />
 
       <Link
-        href="/account"
+        href={accountHref}
         className="flex items-center gap-3 rounded-lg bg-ink-900 px-4 py-3 transition-colors hover:bg-ink-800"
       >
         <span className="grid size-9 place-items-center rounded-full border border-gold-500/40">

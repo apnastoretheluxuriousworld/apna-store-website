@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Construction, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 export function PageHeader({
   title,
@@ -45,17 +46,7 @@ export function ComingSoon({ feature, what }: { feature: string; what: string })
 }
 
 export function PanelSkeleton() {
-  return (
-    <div className="animate-pulse space-y-6" aria-busy="true" aria-label="Loading">
-      <div className="h-9 w-48 rounded bg-ink-800" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-ink-850" />
-        ))}
-      </div>
-      <div className="h-64 rounded-xl bg-ink-850" />
-    </div>
-  );
+  return <PageLoader label="Loading" />;
 }
 
 /** Round gold "+" pinned bottom-right, just above the mobile bottom bar. */

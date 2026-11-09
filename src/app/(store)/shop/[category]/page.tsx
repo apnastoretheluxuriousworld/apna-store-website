@@ -6,6 +6,7 @@ import { CategoryGrid } from "@/components/product/category-grid";
 import { CollectionRow } from "@/components/product/collection-row";
 import { getStoreCategories } from "@/lib/data/categories";
 import { getCategoryProductsPage, getCollectionRowProducts, getProductCounts } from "@/lib/data/products";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 export async function generateMetadata({ params }: PageProps<"/shop/[category]">): Promise<Metadata> {
   const { category } = await params;
@@ -83,17 +84,5 @@ async function CategoryContent({ params }: { params: PageProps<"/shop/[category]
 }
 
 function CategorySkeleton() {
-  return (
-    <div className="animate-pulse" aria-busy="true" aria-label="Loading collection">
-      <div className="mx-auto mb-12 flex flex-col items-center gap-3">
-        <div className="h-3 w-24 rounded bg-ink-800" />
-        <div className="h-12 w-56 rounded bg-ink-800" />
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="aspect-4/5 rounded-xl bg-ink-850" />
-        ))}
-      </div>
-    </div>
-  );
+  return <PageLoader label="Loading collection" />;
 }

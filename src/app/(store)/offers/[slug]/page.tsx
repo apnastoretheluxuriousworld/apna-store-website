@@ -8,6 +8,7 @@ import { OfferPicker } from "@/components/offers/offer-picker";
 import { getStoreOffer } from "@/lib/data/offers";
 import { formatPrice } from "@/lib/format";
 import { describeOffer } from "@/lib/validation/offer";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 type Params = PageProps<"/offers/[slug]">["params"];
 
@@ -86,19 +87,5 @@ async function OfferContent({ params }: { params: Params }) {
 }
 
 function OfferSkeleton() {
-  return (
-    <div className="mx-auto grid max-w-site gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-12 lg:px-12">
-      <div className="aspect-4/5 max-h-[70svh] animate-pulse bg-ink-850 sm:rounded-2xl" />
-      <div className="space-y-4 px-4 lg:px-0 lg:pt-2">
-        <div className="h-3 w-24 animate-pulse rounded bg-ink-850" />
-        <div className="h-10 w-3/4 animate-pulse rounded bg-ink-850" />
-        <div className="h-8 w-32 animate-pulse rounded bg-ink-850" />
-        <div className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="aspect-4/5 animate-pulse rounded-xl bg-ink-850" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <PageLoader label="Loading offer" />;
 }

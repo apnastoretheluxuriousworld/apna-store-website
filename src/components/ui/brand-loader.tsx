@@ -71,3 +71,12 @@ function Glint({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** The brand loader centred in the page area — the fallback while a page's data loads. */
+export function PageLoader({ label, className }: { label?: string; className?: string }) {
+  return (
+    <div className={cn("flex min-h-[55svh] items-center justify-center py-16", className)}>
+      <BrandLoader label={label} />
+    </div>
+  );
+}

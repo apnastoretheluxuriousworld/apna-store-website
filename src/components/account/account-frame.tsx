@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FeedbackTabBadge } from "@/components/feedback/feedback-tab-badge";
 import { cn } from "@/lib/utils";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 const tabs = [
   { key: "orders", label: "My Orders", href: "/account" },
@@ -46,11 +47,5 @@ export function AccountFrame({ active, children }: { active?: (typeof tabs)[numb
 }
 
 export function AccountSkeleton() {
-  return (
-    <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Loading">
-      <div className="h-28 rounded-2xl bg-ink-850" />
-      <div className="h-24 rounded-2xl bg-ink-850" />
-      <div className="h-24 rounded-2xl bg-ink-850" />
-    </div>
-  );
+  return <PageLoader label="Loading your account" />;
 }

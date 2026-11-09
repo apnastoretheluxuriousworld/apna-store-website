@@ -11,6 +11,15 @@ type MenuState = {
   onClosed: () => void;
   toggle: () => void;
   close: () => void;
+  /**
+   * Close right now, not as a transition. For taps on links: a transition close
+   * would be batched with the navigation and wait until the next page is ready.
+   */
+  closeNow: () => void;
+  /** A link was tapped: close the menu now and treat `href` as the current page until the URL changes. */
+  go: (href: string) => void;
+  /** The tapped link's href while its page is on the way, else null. */
+  pending: string | null;
 };
 
 const MenuContext = createContext<MenuState | null>(null);
@@ -39,15 +48,28 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const close = useCallback(() => startTransition(() => setOpen(false)), []);
+  const closeNow = useCallback(() => setOpen(false), []);
+  const [pending, setPending] = useState<string | null>(null);
+  const go = useCallback((href: string) => {
+    setOpen(false);
+    setPending(href);
+  }, []);
+  const onNavigate = useCallback(() => {
+    close();
+    setPending(null);
+  }, [close]);
   const onClosed = useCallback(() => setVisible(false), []);
 
   const shown = open || visible;
-  const value = useMemo(() => ({ open, shown, onClosed, toggle, close }), [open, shown, onClosed, toggle, close]);
+  const value = useMemo(
+    () => ({ open, shown, onClosed, toggle, close, closeNow, go, pending }),
+    [open, shown, onClosed, toggle, close, closeNow, go, pending],
+  );
   return (
     <MenuContext value={value}>
       {/* Reading the URL must stream (Cache Components), so it sits in Suspense */}
       <Suspense fallback={null}>
-        <CloseOnNavigate onNavigate={close} />
+        <CloseOnNavigate onNavigate={onNavigate} />
       </Suspense>
       {children}
     </MenuContext>

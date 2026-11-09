@@ -7,6 +7,8 @@ import { Suspense, useState } from "react";
 import { ExternalLink, MoreHorizontal, X } from "lucide-react";
 import { Emblem } from "@/components/brand/logo";
 import { adminNav, isActive } from "./nav";
+import { IntentLink } from "./intent-link";
+import { isPlainClick, useTappedPath } from "@/lib/use-tapped-path";
 import { SignOutButton } from "./sign-out-button";
 import { cn } from "@/lib/utils";
 
@@ -49,10 +51,23 @@ function BottomBarWithPath({ badges, moreBadge }: { badges: Badges; moreBadge?: 
 function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badges: Badges; moreBadge?: React.ReactNode }) {
   // Open state is tied to the pathname it was opened on, so navigating closes it.
   const [openAt, setOpenAt] = useState<string | null>(null);
+  // Forget it on navigation, or coming back to that page (e.g. Back) would reopen it.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    setOpenAt(null);
+  }
   const open = openAt === pathname;
+  // Highlight the tapped item and close the sheet at once, before the page arrives.
+  const [current, tap] = useTappedPath(pathname);
+  const go = (href: string) => (e: React.MouseEvent) => {
+    if (!isPlainClick(e)) return;
+    setOpenAt(null);
+    tap(href);
+  };
   const primary = adminNav.filter((i) => i.primary).sort((a, b) => a.primary! - b.primary!);
   const more = adminNav.filter((i) => !i.primary);
-  const moreActive = more.some((i) => isActive(pathname, i.href));
+  const moreActive = more.some((i) => isActive(current, i.href));
 
   return (
     <>
@@ -77,12 +92,13 @@ function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badg
             >
               <div className="grid grid-cols-4 gap-2">
                 {more.map(({ label, href, icon: Icon }) => (
-                  <Link
+                  <IntentLink
                     key={href}
                     href={href}
+                    onClick={go(href)}
                     className={cn(
                       "flex flex-col items-center gap-1.5 rounded-xl py-3 text-[0.7rem]",
-                      isActive(pathname, href) ? "bg-gold-500/10 text-gold-300" : "text-stone",
+                      isActive(current, href) ? "bg-gold-500/10 text-gold-300" : "text-stone",
                     )}
                   >
                     <span className="relative grid size-10 place-items-center rounded-full border border-gold-500/30">
@@ -90,7 +106,7 @@ function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badg
                       {badges[href] && <span className="absolute -top-1.5 -right-2">{badges[href]}</span>}
                     </span>
                     {label}
-                  </Link>
+                  </IntentLink>
                 ))}
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-ink-600/60 pt-3">
@@ -114,11 +130,12 @@ function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badg
       >
         <ul className="mx-auto grid h-16 max-w-md grid-cols-5">
           {primary.map(({ label, href, icon: Icon }) => {
-            const active = !open && isActive(pathname, href);
+            const active = !open && isActive(current, href);
             return (
               <li key={href}>
-                <Link
+                <IntentLink
                   href={href}
+                  onClick={go(href)}
                   className={cn(
                     "flex h-full flex-col items-center justify-center gap-1 text-[0.6rem] tracking-wide",
                     active ? "text-gold-400" : "text-stone",
@@ -129,7 +146,7 @@ function BottomBarView({ pathname, badges, moreBadge }: { pathname: string; badg
                     {badges[href] && <span className="absolute -top-2 left-3">{badges[href]}</span>}
                   </span>
                   {label}
-                </Link>
+                </IntentLink>
               </li>
             );
           })}

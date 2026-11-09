@@ -13,6 +13,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { getRelatedProducts, getStoreProductDetail } from "@/lib/data/products";
 import { getStoreInfo } from "@/lib/data/settings";
 import { site } from "@/lib/site";
+import { PageLoader } from "@/components/ui/brand-loader";
 
 type Params = PageProps<"/shop/[category]/[product]">["params"];
 
@@ -183,15 +184,5 @@ async function ProductContent({ params }: { params: Params }) {
 }
 
 function ProductSkeleton() {
-  return (
-    <div className="mx-auto grid max-w-site gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14 lg:px-12">
-      <div className="aspect-4/5 animate-pulse bg-ink-850 sm:rounded-2xl" />
-      <div className="space-y-4 px-4 lg:px-0 lg:pt-2">
-        <div className="h-3 w-24 animate-pulse rounded bg-ink-850" />
-        <div className="h-10 w-3/4 animate-pulse rounded bg-ink-850" />
-        <div className="h-8 w-32 animate-pulse rounded bg-ink-850" />
-        <div className="h-13 animate-pulse rounded bg-ink-850" />
-      </div>
-    </div>
-  );
+  return <PageLoader label="Loading product" />;
 }

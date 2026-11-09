@@ -4,9 +4,40 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { quoteCart, type CartQuote } from "@/app/(store)/checkout/actions";
 import { codBlockReason, computeTotals, lineKey, type CartItem } from "@/lib/validation/checkout";
 import type { CartBundle } from "@/lib/validation/offer";
-import { useBundles, useCart } from "./cart-store";
+import { getBagSnapshot, useBundles, useCart } from "./cart-store";
 
 const noopSubscribe = () => () => {};
+
+const bagKeys = (items: CartItem[], bundles: CartBundle[]) =>
+  [...items.map(lineKey).sort(), ...bundles.map((b) => `offer:${b.id}`)].join(",");
+
+/*
+ * Last prices the server gave (kept for this visit) and the request in flight.
+ * The cart and checkout show the remembered prices at once and refresh them in
+ * the background, so moving between them never waits on the server.
+ */
+let lastQuote: { keys: string; quote: CartQuote } | null = null;
+let inflight: { keys: string; promise: ReturnType<typeof quoteCart> } | null = null;
+
+function fetchQuote(items: CartItem[], bundles: CartBundle[]) {
+  const keys = bagKeys(items, bundles);
+  if (inflight?.keys === keys) return inflight.promise;
+  const promise = quoteCart(items, bundles).then((res) => {
+    if (res.ok) lastQuote = { keys, quote: res.data };
+    return res;
+  });
+  inflight = { keys, promise };
+  void promise.finally(() => {
+    if (inflight?.promise === promise) inflight = null;
+  });
+  return promise;
+}
+
+/** Start pricing the bag now (e.g. on "Buy now", before checkout opens). */
+export function prefetchCartQuote() {
+  const { items, bundles } = getBagSnapshot();
+  if (items.length || bundles.length) void fetchQuote(items, bundles);
+}
 
 export type BagLine = CartQuote["lines"][number] & { item: CartItem };
 export type BagBundle = CartQuote["bundles"][number];
@@ -19,19 +50,17 @@ export type BagBundle = CartQuote["bundles"][number];
 export function useCartQuote() {
   const items = useCart();
   const bundleItems = useBundles();
-  const [quote, setQuote] = useState<CartQuote | null>(null);
+  const keys = useMemo(() => bagKeys(items, bundleItems), [items, bundleItems]);
+  // Start from the remembered prices when they're for this bag.
+  const cached = lastQuote?.keys === keys ? lastQuote : null;
+  const [quote, setQuote] = useState<CartQuote | null>(cached?.quote ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [fetchedFor, setFetchedFor] = useState<string | null>(null);
-
-  const keys = useMemo(
-    () => [...items.map(lineKey).sort(), ...bundleItems.map((b) => `offer:${b.id}`)].join(","),
-    [items, bundleItems],
-  );
+  const [fetchedFor, setFetchedFor] = useState<string | null>(cached?.keys ?? null);
   const empty = items.length === 0 && bundleItems.length === 0;
 
   const refresh = useCallback(async (list: CartItem[], offers: CartBundle[], forKeys: string) => {
     if (!list.length && !offers.length) return;
-    const res = await quoteCart(list, offers);
+    const res = await fetchQuote(list, offers);
     if (res.ok) {
       setQuote(res.data);
       setError(null);
@@ -43,7 +72,7 @@ export function useCartQuote() {
     // Quantities don't change which lines exist, so only re-ask when the set of lines does.
     if (empty) return;
     let live = true;
-    void quoteCart(items, bundleItems).then((res) => {
+    void fetchQuote(items, bundleItems).then((res) => {
       if (!live) return;
       if (res.ok) {
         setQuote(res.data);

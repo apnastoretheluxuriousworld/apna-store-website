@@ -106,6 +106,13 @@
       "when": 1794221689074,
       "tag": "0014_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794254109954,
+      "tag": "0015_site_visits",
+      "breakpoints": true
     }
   ]
 }

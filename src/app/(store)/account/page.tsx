@@ -6,7 +6,8 @@ import { OrderCard } from "@/components/account/order-card";
 import { CustomerSignOutButton } from "@/components/account/sign-out-button";
 import { ButtonLink } from "@/components/ui/button";
 import { cacheLife } from "next/cache";
-import { requireCustomerView } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import { currentUserView, requireCustomerView } from "@/lib/auth/session";
 import { getMyOrders } from "@/lib/data/customers";
 import { formatPrice } from "@/lib/format";
 import { formatDate } from "@/lib/orders";
@@ -28,6 +29,8 @@ export default function AccountPage() {
 async function Overview() {
   "use cache: private";
   cacheLife("account");
+  // The admin's session isn't a customer account: "My Account" takes them to the admin panel.
+  if ((await currentUserView())?.role === "admin") redirect("/admin");
   const user = await requireCustomerView("/account");
   const orders = await getMyOrders(user.id);
   const firstName = user.name.split(" ")[0];

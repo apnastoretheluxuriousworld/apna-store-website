@@ -7,6 +7,8 @@ import { motion } from "motion/react";
 import { ExternalLink } from "lucide-react";
 import { Emblem } from "@/components/brand/logo";
 import { adminNav, isActive } from "./nav";
+import { IntentLink } from "./intent-link";
+import { isPlainClick, useTappedPath } from "@/lib/use-tapped-path";
 import { SignOutButton } from "./sign-out-button";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +29,8 @@ function SidebarWithPath({ userSlot, badges }: { userSlot: React.ReactNode; badg
 }
 
 function SidebarView({ userSlot, badges, pathname }: { userSlot: React.ReactNode; badges: Badges; pathname: string | null }) {
+  // Highlight the tapped item at once, before its page arrives.
+  const [current, tap] = useTappedPath(pathname);
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-ink-600/60 bg-ink-950 lg:flex">
       <Link href="/admin" className="flex items-center gap-3 px-6 pt-7 pb-8">
@@ -41,11 +45,12 @@ function SidebarView({ userSlot, badges, pathname }: { userSlot: React.ReactNode
 
       <nav aria-label="Admin" className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {adminNav.map(({ label, href, icon: Icon }) => {
-          const active = pathname !== null && isActive(pathname, href);
+          const active = current !== null && isActive(current, href);
           return (
-            <Link
+            <IntentLink
               key={href}
               href={href}
+              onClick={(e) => isPlainClick(e) && tap(href)}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
@@ -62,7 +67,7 @@ function SidebarView({ userSlot, badges, pathname }: { userSlot: React.ReactNode
               <Icon className="relative size-4.5" strokeWidth={1.5} />
               <span className="relative flex-1">{label}</span>
               {badges[href] && <span className="relative">{badges[href]}</span>}
-            </Link>
+            </IntentLink>
           );
         })}
       </nav>

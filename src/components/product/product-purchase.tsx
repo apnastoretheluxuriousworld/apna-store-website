@@ -12,6 +12,7 @@ import type { StoreProductDetail, StoreVariant } from "@/lib/data/products";
 import { formatPrice } from "@/lib/format";
 import { MAX_QTY_PER_LINE, lineKey } from "@/lib/validation/checkout";
 import { cn } from "@/lib/utils";
+import { prefetchCartQuote } from "@/components/cart/use-cart-quote";
 
 type Props = Pick<StoreProductDetail, "id" | "name" | "price" | "compareAtPrice" | "inStock" | "stockLeft" | "variants">;
 
@@ -22,6 +23,10 @@ type Props = Pick<StoreProductDetail, "id" | "name" | "price" | "compareAtPrice"
  */
 export function ProductPurchase({ product, whatsappUrl }: { product: Props; whatsappUrl: string | null }) {
   const router = useRouter();
+  // Checkout opens instantly from "Buy now".
+  useEffect(() => {
+    router.prefetch("/checkout");
+  }, [router]);
   const hasOptions = product.variants.length > 0;
   const [variant, setVariant] = useState<StoreVariant | null>(() =>
     // A single option needs no choosing.
@@ -85,6 +90,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
   function onBuyNow() {
     if (hasOptions && !variant) return void add();
     if (!inBag) add(); // already in the bag is fine — go to checkout with what's in it
+    prefetchCartQuote(); // price the bag while checkout opens
     router.push("/checkout");
   }
 

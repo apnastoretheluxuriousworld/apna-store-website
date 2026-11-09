@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { desc, eq } from "drizzle-orm";
-import { CartSkeleton } from "@/components/cart/cart-view";
 import { CheckoutView, type CheckoutPrefill } from "@/components/checkout/checkout-view";
 import { getCurrentUser } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -16,9 +14,8 @@ export default function CheckoutPage() {
         <h1 className="mt-3 font-serif text-5xl font-light text-ivory lg:text-6xl">Checkout</h1>
         <div className="hairline mx-auto mt-6 w-24" />
       </header>
-      <Suspense fallback={<CartSkeleton />}>
-        <Checkout />
-      </Suspense>
+      {/* Not awaited: the form opens at once and the saved details fill in when they arrive. */}
+      <CheckoutView prefill={getPrefill()} />
     </div>
   );
 }
@@ -26,7 +23,7 @@ export default function CheckoutPage() {
 const blank = { fullName: "", phone: "", line1: "", line2: "", landmark: "", city: "", state: "", pincode: "" };
 
 /** Signed-in customers start with their name, mobile and last-used address. */
-async function Checkout() {
+async function getPrefill(): Promise<CheckoutPrefill> {
   const user = await getCurrentUser();
   let prefill: CheckoutPrefill = { signedIn: false, address: blank };
   if (user?.role === "customer") {
@@ -43,5 +40,5 @@ async function Checkout() {
         : { ...blank, fullName: user.name, phone: user.phone ?? "" },
     };
   }
-  return <CheckoutView prefill={prefill} />;
+  return prefill;
 }

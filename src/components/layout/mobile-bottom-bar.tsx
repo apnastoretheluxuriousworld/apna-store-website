@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { Home, LayoutGrid, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { BagBadge } from "@/components/cart/bag-badge";
 import { useMenu } from "./menu-context";
+import { isPlainClick } from "@/lib/use-tapped-path";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -47,7 +48,9 @@ function BottomBarWithPath() {
 }
 
 function BottomBarView({ pathname }: { pathname: string }) {
-  const { open, shown, toggle } = useMenu();
+  const { open, shown, toggle, go, pending } = useMenu();
+  // The tapped tab (or menu link) counts as the current page at once.
+  const current = pending ?? pathname;
 
   return (
     <nav
@@ -58,10 +61,10 @@ function BottomBarView({ pathname }: { pathname: string }) {
       <ul className="mx-auto grid h-(--bottom-bar-h) max-w-md grid-cols-5">
         {tabs.map(({ label, href, icon: Icon }) => {
           // Wait for the sheet to slide away before the underline returns to the page's tab.
-          const active = !shown && isActive(pathname, href);
+          const active = (pending !== null || !shown) && isActive(current, href);
           return (
             <li key={href}>
-              <Link href={href} aria-current={active ? "page" : undefined} className={tabClass(active)}>
+              <Link href={href} onClick={(e) => isPlainClick(e) && go(href)} aria-current={active ? "page" : undefined} className={tabClass(active)}>
                 {active && <Indicator />}
                 <span className="relative">
                   <Icon
