@@ -99,12 +99,12 @@ export function HeroSlideForm({
         {/* Image + live preview */}
         <div className="space-y-3 lg:space-y-5">
           <Card>
-            <Field label="Image" error={errors.imageUrl?.message} hint="Landscape 16:9 (e.g. 1920×1080) · shown whole across the full width">
+            <Field label="Image" error={errors.imageUrl?.message} hint="Use a square image, 1200×1200 (1:1). Keep the product in the centre on a dark background and put no text in the image, since the edges get cropped and the bottom fades into black.">
               <Controller
                 control={control}
                 name="imageUrl"
                 render={({ field }) => (
-                  <ImageUpload folder="hero" aspect="aspect-video" value={field.value || null} onChange={(url) => field.onChange(url ?? "")} />
+                  <ImageUpload folder="hero" value={field.value || null} onChange={(url) => field.onChange(url ?? "")} />
                 )}
               />
             </Field>
@@ -220,12 +220,15 @@ export function HeroSlideForm({
 /** Rough phone-sized look of the slide on the homepage. */
 function Preview({ v }: { v: HeroSlideFormValues }) {
   return (
-    <div className="mx-auto w-full max-w-64 overflow-hidden rounded-xl bg-ink-950">
-      <div className="relative aspect-video w-full bg-ink-900">
-        {v.imageUrl && <Image src={v.imageUrl} alt="" fill unoptimized className="object-cover" />}
-        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-linear-to-t from-ink-950 to-transparent" />
-      </div>
-      <div className="flex flex-col items-center px-4 pt-2 pb-5 text-center">
+    <div className="relative mx-auto aspect-9/16 w-full max-w-64 overflow-hidden rounded-xl bg-ink-950">
+      <div className="absolute top-[18%] left-1/2 size-[140%] -translate-x-1/2 -translate-y-1/4 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.22),transparent_60%)]" />
+      {v.imageUrl && (
+        <div className="absolute inset-x-0 top-[8%] bottom-[26%] mask-[linear-gradient(to_bottom,black_75%,transparent)]">
+          <Image src={v.imageUrl} alt="" fill unoptimized className="object-cover" />
+        </div>
+      )}
+      <div className="absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-ink-950 via-ink-950/85 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-4 pb-6 text-center">
         {v.eyebrow && <p className="eyebrow mb-2 text-[0.5rem]">{v.eyebrow}</p>}
         <p className="font-serif text-xl leading-tight font-light text-ivory">
           {v.title}

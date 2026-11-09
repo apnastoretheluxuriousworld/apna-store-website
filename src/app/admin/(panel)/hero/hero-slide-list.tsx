@@ -130,7 +130,7 @@ function Row({
       </button>
 
       <Link href={`/admin/hero/${row.id}`} className={cn("group flex min-w-0 flex-1 items-center gap-3", !row.isActive && "opacity-60")}>
-        <span className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-lg border border-ink-600 bg-ink-900">
+        <span className="relative aspect-4/5 w-12 shrink-0 overflow-hidden rounded-lg border border-ink-600 bg-ink-900">
           <Image src={row.imageUrl} alt="" fill sizes="48px" unoptimized className="object-cover" />
         </span>
         <span className="min-w-0 flex-1">

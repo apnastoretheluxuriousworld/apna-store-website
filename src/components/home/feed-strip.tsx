@@ -107,6 +107,13 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
   /** Glide to a (fractional-free) target position. */
   function settleTo(target: number, velocity = 0) {
     anim.current?.stop();
+    // Already there (e.g. a finger touched a card while scrolling the page): don't
+    // flag "moving", or the centre preview would stop and restart from the top.
+    if (velocity === 0 && Math.abs(pos.get() - target) < 0.001) {
+      pos.set(target);
+      setMoving(false);
+      return;
+    }
     setMoving(true);
     anim.current = animate(pos, target, {
       type: "spring",
@@ -150,7 +157,7 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
       <Reveal>
         <div
           ref={stage}
-          className="relative mx-auto touch-pan-y select-none"
+          className="relative isolate mx-auto touch-pan-y select-none"
           onPointerDown={(e) => {
             if (n < 2 || (e.pointerType === "mouse" && e.button !== 0)) return;
             anim.current?.stop(); // catch a rolling carousel
