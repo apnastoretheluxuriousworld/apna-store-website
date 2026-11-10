@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLenis } from "lenis/react";
+import { useScrollLock } from "@/components/motion/scroll-lock";
 import { ChevronDown, ChevronUp, Play, Volume2, VolumeX, X } from "lucide-react";
 import type { FeedVideo } from "@/lib/data/feed";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
   const [active, setActive] = useState(start);
   // Opening is a tap, so sound is usually allowed; if the browser refuses, we fall back to muted.
   const [muted, setMuted] = useState(false);
-  const lenis = useLenis();
+  useScrollLock(true);
   /** Gesture in progress: start point, and whether it has moved enough to be a swipe (not a tap). */
   const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
@@ -39,10 +39,6 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
     const s = scroller.current;
     if (s) s.scrollTop = start * s.clientHeight;
 
-    lenis?.stop();
-    const prevOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-
     // (Skip if already pushed — React StrictMode runs this twice in dev.)
     if (!(window.history.state as { apnaFeed?: boolean } | null)?.apnaFeed) {
       window.history.pushState({ ...window.history.state, apnaFeed: true }, "");
@@ -51,8 +47,6 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      lenis?.start();
-      document.documentElement.style.overflow = prevOverflow;
       d?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only

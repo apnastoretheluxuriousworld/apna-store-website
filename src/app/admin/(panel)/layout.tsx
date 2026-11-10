@@ -6,7 +6,7 @@ import { AdminBottomBar, AdminMobileTop } from "@/components/admin/admin-mobile-
 import { PanelSkeleton } from "@/components/admin/ui";
 import { OutboxStatus } from "@/components/admin/outbox";
 import { PwaSetup } from "@/components/admin/pwa";
-import { NotificationsProvider, UnreadBadge } from "@/components/admin/notifications";
+import { MoreDot, NotificationsProvider, UnreadBadge, WaitingBadge } from "@/components/admin/notifications";
 import { requireAdminView } from "@/lib/auth/session";
 import { AdminRoleHint } from "@/lib/auth/role-hint";
 import { countPendingReviews } from "@/lib/data/reviews";
@@ -44,12 +44,19 @@ async function UserBadge() {
   );
 }
 
-/** Reviews waiting for approval: a count in the menu, or just a dot on "More". */
-async function PendingReviews({ dot }: { dot?: boolean }) {
+/** Server-rendered dot for "More" (unread chats or reviews to approve), shown until the live check takes over. */
+async function MoreDotInitial() {
+  await requireAdminView();
+  const [reviews, chats] = await Promise.all([countPendingReviews(), countUnreadConversations()]);
+  if (!reviews && !chats) return null;
+  return <span aria-label="Something inside needs attention" className="block size-2 rounded-full bg-red-500 ring-2 ring-ink-950" />;
+}
+
+/** Reviews waiting for approval: a count in the menu. */
+async function PendingReviews() {
   await requireAdminView();
   const n = await countPendingReviews();
   if (!n) return null;
-  if (dot) return <span aria-label="Reviews waiting" className="block size-2 rounded-full bg-gold-400" />;
   return (
     <span
       aria-label={`${n} waiting for approval`}
@@ -76,16 +83,27 @@ async function UnreadFeedback() {
 }
 
 const navBadges = {
+  // Live counts (updated with every notification check); the server-rendered ones show until the first check.
   "/admin/feedback": (
-    <Suspense fallback={null}>
-      <UnreadFeedback />
-    </Suspense>
+    <WaitingBadge
+      kind="feedback"
+      fallback={
+        <Suspense fallback={null}>
+          <UnreadFeedback />
+        </Suspense>
+      }
+    />
   ),
   "/admin/notifications": <UnreadBadge />,
   "/admin/reviews": (
-    <Suspense fallback={null}>
-      <PendingReviews />
-    </Suspense>
+    <WaitingBadge
+      kind="reviews"
+      fallback={
+        <Suspense fallback={null}>
+          <PendingReviews />
+        </Suspense>
+      }
+    />
   ),
 };
 
@@ -128,9 +146,13 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
       <AdminBottomBar
         badges={navBadges}
         moreBadge={
-          <Suspense fallback={null}>
-            <PendingReviews dot />
-          </Suspense>
+          <MoreDot
+            fallback={
+              <Suspense fallback={null}>
+                <MoreDotInitial />
+              </Suspense>
+            }
+          />
         }
       />
       {/* Background sync of optimistic saves (see components/admin/outbox.tsx) */}

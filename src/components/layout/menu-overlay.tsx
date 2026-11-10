@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, type PanInfo } from "motion/react";
-import { useLenis } from "lenis/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { ArrowUpRight, ChevronRight, Search, User, X } from "lucide-react";
 import { useMenu } from "./menu-context";
+import { useScrollLock } from "@/components/motion/scroll-lock";
 import { isPlainClick } from "@/lib/use-tapped-path";
 import { useAccountHref } from "@/lib/auth/role-hint";
 import { Emblem } from "@/components/brand/logo";
@@ -38,22 +38,12 @@ function useIsDesktop() {
 /** Mobile: compact bottom sheet. Desktop: full right-side sidebar. */
 export function MenuOverlay({ categories }: { categories: NavCategory[] }) {
   const { open, shown, close, go, onClosed } = useMenu();
-  const lenis = useLenis();
   const desktop = useIsDesktop();
 
   // Lock background scroll while the sheet is on screen. It unlocks only after
   // the closing animation ends — unlocking mid-slide repaints the page and the
   // fixed bottom bar, which shows as a flash.
-  useEffect(() => {
-    if (!shown) return;
-    lenis?.stop();
-    const prev = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prev;
-      lenis?.start();
-    };
-  }, [shown, lenis]);
+  useScrollLock(shown);
 
   // Close on Escape.
   useEffect(() => {

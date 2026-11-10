@@ -180,6 +180,11 @@ export async function getReviewAction(userId: string, productId: string): Promis
 export async function countPendingReviews() {
   "use cache: private";
   cacheLife("admin");
+  return countPendingReviewsNow();
+}
+
+/** Same count, never cached: for the admin's live check (the "More" dot). */
+export async function countPendingReviewsNow() {
   const [row] = await db()
     .select({ n: sql<number>`count(*)::int` })
     .from(s.reviews)

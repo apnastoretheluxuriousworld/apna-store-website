@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -9,6 +10,7 @@ import type { ReviewMedia } from "@/lib/db/schema";
 import { REVIEWS_TAG } from "@/lib/data/reviews";
 import { deleteUnreferencedUploads } from "@/lib/storage/cleanup";
 import type { ActionResult } from "@/lib/actions";
+import { signalAdmins } from "@/lib/realtime/server";
 
 /** Refresh the storefront (reviews + card ratings) and the admin's client cache. */
 function reviewsChanged() {
@@ -31,6 +33,7 @@ export async function deleteReview(id: string): Promise<ActionResult> {
   const [gone] = await db().delete(s.reviews).where(eq(s.reviews.id, id)).returning({ media: s.reviews.media });
   if (gone) await deleteUnreferencedUploads(mediaUrls(gone.media));
   reviewsChanged();
+  after(signalAdmins); // the "waiting for approval" badge and the "More" dot update on every admin screen
   return { ok: true };
 }
 
@@ -39,6 +42,7 @@ export async function setReviewApproved(id: string, isApproved: boolean): Promis
   if (!idSchema.safeParse(id).success || typeof isApproved !== "boolean") return { ok: false, error: "Invalid request." };
   await db().update(s.reviews).set({ isApproved }).where(eq(s.reviews.id, id));
   reviewsChanged();
+  after(signalAdmins); // the "waiting for approval" badge and the "More" dot update on every admin screen
   return { ok: true };
 }
 

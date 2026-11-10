@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { fetchNotifications, markNotificationsRead, refreshAdminPages } from "@/app/admin/(panel)/notifications/actions";
+import { fetchNotifications, markNotificationsRead, refreshAdminPages, type Waiting } from "@/app/admin/(panel)/notifications/actions";
 import type { AdminNotification } from "@/lib/data/notifications";
 import { subscribeAdminSignals } from "@/lib/realtime/client";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ const SOUND_KEY = "apna-admin-sound";
 type State = {
   items: AdminNotification[];
   unread: number;
+  /** Unread feedback conversations and reviews to approve (inside "More"); null until the first check. */
+  waiting: Waiting | null;
   loaded: boolean;
   /** Realtime connected (else: periodic checks only). */
   live: boolean;
@@ -75,6 +77,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const router = useRouter();
   const [items, setItems] = useState<AdminNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [waiting, setWaiting] = useState<Waiting | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [live, setLive] = useState(false);
   const [sound, setSoundState] = useState(true);
@@ -173,7 +176,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     try {
       const res = await fetchNotifications(first ? undefined : newest.current);
       if (!res.ok) return;
-      const { unread: count, items: got } = res.data;
+      const { unread: count, items: got, waiting: w } = res.data;
+      setWaiting((prev) => (prev && prev.feedback === w.feedback && prev.reviews === w.reviews ? prev : w));
       const fresh = got.filter((n) => known.current.get(n.id) !== n.createdAt);
       if (marking.current === 0 && markVersion.current === version) setUnread(count);
       else setUnread((u) => u + fresh.filter((n) => !n.read).length);
@@ -247,10 +251,57 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, [loaded, unread]);
 
   const value = useMemo<State>(
-    () => ({ items, unread, loaded, live, sound, setSound, markRead, markAllRead, open }),
-    [items, unread, loaded, live, sound, setSound, markRead, markAllRead, open],
+    () => ({ items, unread, waiting, loaded, live, sound, setSound, markRead, markAllRead, open }),
+    [items, unread, waiting, loaded, live, sound, setSound, markRead, markAllRead, open],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {/* Re-check on every page change, so reading a chat or approving a review clears its badge. Reads the URL → Suspense. */}
+      <Suspense fallback={null}>
+        <CheckOnNavigate onChange={check} />
+      </Suspense>
+      {children}
+    </Ctx.Provider>
+  );
+}
+
+function CheckOnNavigate({ onChange }: { onChange: () => void }) {
+  const pathname = usePathname();
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false; // the provider already checks on load
+      return;
+    }
+    onChange();
+  }, [pathname, onChange]);
+  return null;
+}
+
+const countPill =
+  "grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1.5 text-[0.65rem] font-semibold text-ink-950 tabular-nums";
+
+/** Live count for Feedback (unread chats) or Reviews (to approve) in the menu; nothing when zero. */
+export function WaitingBadge({ kind, fallback }: { kind: keyof Waiting; fallback?: React.ReactNode }) {
+  const w = useNotifications()?.waiting;
+  // Until the first live check, show the server-rendered badge.
+  if (!w) return fallback ?? null;
+  const n = w[kind];
+  if (!n) return null;
+  const what = kind === "feedback" ? `unread conversation${n > 1 ? "s" : ""}` : "waiting for approval";
+  return (
+    <span aria-label={`${n} ${what}`} className={countPill}>
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+/** Dot on the "More" button when anything inside it is waiting (unread chats or reviews to approve). */
+export function MoreDot({ fallback }: { fallback?: React.ReactNode }) {
+  const w = useNotifications()?.waiting;
+  if (!w) return fallback ?? null;
+  if (!w.feedback && !w.reviews) return null;
+  return <span aria-label="Something inside needs attention" className="block size-2 rounded-full bg-red-500 ring-2 ring-ink-950" />;
 }
 
 /** Unread count for the menu (nothing when all read). */

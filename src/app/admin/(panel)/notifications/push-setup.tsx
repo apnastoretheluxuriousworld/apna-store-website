@@ -23,6 +23,27 @@ function urlBase64ToUint8Array(base64: string) {
   return out;
 }
 
+/** Does this existing subscription use the server's current key? (Keys can change, e.g. after rotating them.) */
+function sameKey(sub: PushSubscription, key: Uint8Array) {
+  const k = sub.options.applicationServerKey;
+  if (!k) return false;
+  const a = new Uint8Array(k);
+  return a.length === key.length && a.every((b, i) => b === key[i]);
+}
+
+/** Turns a browser push error into something the admin can act on. */
+function pushErrorMessage(e: unknown) {
+  const name = e instanceof DOMException ? e.name : "";
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg === "no service worker") return "Couldn't start the app's background worker. Reload the page and try again.";
+  if (name === "NotAllowedError") return "Notifications are blocked for this site. Allow them in the browser's site settings.";
+  if (name === "InvalidAccessError" || /applicationServerKey|key/i.test(msg))
+    return "The server's push key looks invalid. Check VAPID_PUBLIC_KEY in Vercel (no quotes or spaces).";
+  if (name === "AbortError" || /push service/i.test(msg))
+    return "This browser can't receive push notifications. Use Chrome or Samsung Internet (in Brave: Settings → Privacy → turn on \"Use Google services for push messaging\").";
+  return `Couldn't turn on notifications on this device (${name || "error"}: ${msg.slice(0, 120)}).`;
+}
+
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const isStandalone = () =>
   window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -50,7 +71,8 @@ export function PushSetup({ vapidKey }: { vapidKey: string | null }) {
       else {
         const reg = await registerServiceWorker();
         const sub = await reg?.pushManager.getSubscription();
-        if (sub && Notification.permission === "granted") {
+        // A subscription made with an older key can't receive anything: show "off" so it gets renewed.
+        if (sub && Notification.permission === "granted" && (!vapidKey || sameKey(sub, urlBase64ToUint8Array(vapidKey)))) {
           setEndpoint(sub.endpoint);
           // Re-save: keeps the server in step if the row was removed (e.g. DB reset).
           void subscribePush(sub.toJSON(), deviceName());
@@ -62,7 +84,7 @@ export function PushSetup({ vapidKey }: { vapidKey: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [vapidKey]);
 
   const turnOn = useCallback(async () => {
     if (!vapidKey) return;
@@ -76,8 +98,14 @@ export function PushSetup({ vapidKey }: { vapidKey: string | null }) {
       }
       const reg = (await registerServiceWorker()) && (await navigator.serviceWorker.ready);
       if (!reg) throw new Error("no service worker");
+      const key = urlBase64ToUint8Array(vapidKey);
       let sub = await reg.pushManager.getSubscription();
-      sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
+      // An old subscription made with an earlier key can't receive anything now: replace it.
+      if (sub && !sameKey(sub, key)) {
+        await sub.unsubscribe();
+        sub = null;
+      }
+      sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
       const res = await subscribePush(sub.toJSON(), deviceName());
       if (!res.ok) {
         toast.error(res.error);
@@ -89,7 +117,7 @@ export function PushSetup({ vapidKey }: { vapidKey: string | null }) {
       if (!test.ok) toast.error(test.error);
     } catch (e) {
       console.error("[push] subscribe", e);
-      toast.error("Couldn't turn on notifications on this device.");
+      toast.error(pushErrorMessage(e), { duration: 12000 });
     } finally {
       setBusy(false);
     }

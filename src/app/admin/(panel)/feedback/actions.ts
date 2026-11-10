@@ -1,12 +1,12 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
-import { listMessages, MESSAGE_MAX, type ChatMessage } from "@/lib/data/feedback";
+import { adminUnreadSql, listMessages, MESSAGE_MAX, type ChatMessage } from "@/lib/data/feedback";
 import { markNotificationsReadFor } from "@/lib/data/notifications";
 import { signalAdmins, signalConversation } from "@/lib/realtime/server";
 import type { ActionResult } from "@/lib/actions";
@@ -59,12 +59,19 @@ export async function fetchConversation(conversationId: unknown, since: unknown,
   const messages = await listMessages(id.data, parsedSince.success ? new Date(parsedSince.data) : undefined);
   if (seen === true) {
     // After the response: marking read doesn't hold up the new messages.
-    after(() =>
-      Promise.all([
-        db().update(s.conversations).set({ adminReadAt: new Date() }).where(eq(s.conversations.id, id.data)),
+    after(async () => {
+      const [cleared] = await Promise.all([
+        // Only a chat that had unread messages changes (returns a row).
+        db()
+          .update(s.conversations)
+          .set({ adminReadAt: new Date() })
+          .where(and(eq(s.conversations.id, id.data), sql`${adminUnreadSql} > 0`))
+          .returning({ id: s.conversations.id }),
         markNotificationsReadFor(`/admin/feedback/${id.data}`),
-      ]),
-    );
+      ]);
+      // Something went from unread to read: admin screens re-check, so the "More" dot and badges clear.
+      if (cleared.length) await signalAdmins();
+    });
   }
   return { ok: true, data: { messages } };
 }

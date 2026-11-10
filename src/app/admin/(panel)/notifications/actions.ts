@@ -6,16 +6,24 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
 import { listNotifications, type AdminNotification } from "@/lib/data/notifications";
+import { countUnreadConversationsNow } from "@/lib/data/feedback";
+import { countPendingReviewsNow } from "@/lib/data/reviews";
 import type { ActionResult } from "@/lib/actions";
 import { deletePushSubscription, pushTest, savePushSubscription } from "@/lib/push/server";
 
-/** Latest notifications + unread count. With `since` (live check), only newer ones. */
-export async function fetchNotifications(since?: unknown): Promise<ActionResult<{ unread: number; items: AdminNotification[] }>> {
+/** What's waiting inside the admin's "More" menu (badges on Feedback / Reviews and the dot on More). */
+export type Waiting = { feedback: number; reviews: number };
+
+/** Latest notifications + unread count + what's waiting. With `since` (live check), only newer ones. */
+export async function fetchNotifications(
+  since?: unknown,
+): Promise<ActionResult<{ unread: number; items: AdminNotification[]; waiting: Waiting }>> {
   await requireAdmin();
   const parsed = z.iso.datetime().optional().safeParse(since ?? undefined);
   const after = parsed.success && parsed.data ? new Date(parsed.data) : undefined;
   try {
-    return { ok: true, data: await listNotifications(after) };
+    const [list, feedback, reviews] = await Promise.all([listNotifications(after), countUnreadConversationsNow(), countPendingReviewsNow()]);
+    return { ok: true, data: { ...list, waiting: { feedback, reviews } } };
   } catch (e) {
     console.error("[fetchNotifications]", e);
     return { ok: false, error: "Couldn't load notifications." };

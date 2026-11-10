@@ -92,7 +92,7 @@ export async function getMyUnreadReplies(userId: string): Promise<{ conversation
 
 /* ───────────── Admin ───────────── */
 
-const adminUnreadSql = sql<number>`(select count(*)::int from "messages" m where m."conversation_id" = "conversations"."id"
+export const adminUnreadSql = sql<number>`(select count(*)::int from "messages" m where m."conversation_id" = "conversations"."id"
   and m."sender" = 'customer' and m."created_at" > coalesce("conversations"."admin_read_at", 'epoch'))`;
 
 export async function listConversationsForAdmin() {
@@ -137,6 +137,11 @@ export async function getConversationForAdmin(id: string) {
 export async function countUnreadConversations() {
   "use cache: private";
   cacheLife("admin");
+  return countUnreadConversationsNow();
+}
+
+/** Same count, never cached: for the admin's live check (the "More" dot). */
+export async function countUnreadConversationsNow() {
   const [row] = await db()
     .select({ n: sql<number>`count(*)::int` })
     .from(s.conversations)
