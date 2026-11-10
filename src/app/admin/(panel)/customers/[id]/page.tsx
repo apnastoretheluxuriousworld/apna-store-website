@@ -117,7 +117,6 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
                 ["Last order", c.orders[0] ? formatDateTime(c.orders[0].createdAt) : "—"],
                 ["Cancelled orders", String(c.stats.cancelled)],
                 ["Reviews written", String(c.reviews)],
-                ["Wishlist items", String(c.wishlist)],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3">
                   <dt className="text-stone">{k}</dt>

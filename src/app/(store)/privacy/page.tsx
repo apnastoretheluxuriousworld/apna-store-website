@@ -37,7 +37,7 @@ export default async function PrivacyPage() {
         <ul>
           <li>To process, pack, ship and deliver your orders, and to collect payment (including cash on delivery).</li>
           <li>To contact you about your order by call, SMS, WhatsApp or email.</li>
-          <li>To manage your account, wishlist and bag, and to provide after-sales support.</li>
+          <li>To manage your account and bag, and to provide after-sales support.</li>
           <li>To prevent fraud and misuse, and to meet legal, tax and accounting obligations.</li>
           <li>With your consent, to tell you about new arrivals and offers — you can opt out at any time.</li>
         </ul>
@@ -53,7 +53,7 @@ export default async function PrivacyPage() {
 
         <h2>Cookies</h2>
         <p>
-          We use essential cookies to keep you signed in and remember your cart and wishlist. We do not use advertising
+          We use essential cookies to keep you signed in and remember your bag. We do not use advertising
           cookies. Blocking cookies in your browser may stop sign-in and checkout from working.
         </p>
 

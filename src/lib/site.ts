@@ -23,7 +23,6 @@ export const categories: NavCategory[] = [
 
 export const secondaryLinks = [
   { label: "My Account", href: "/account" },
-  { label: "Wishlist", href: "/wishlist" },
   { label: "About Us", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];

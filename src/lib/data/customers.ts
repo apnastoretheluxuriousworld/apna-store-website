@@ -276,7 +276,6 @@ export type AdminCustomerDetail = {
   orders: OrderListRow[];
   addresses: ShippingAddress[];
   reviews: number;
-  wishlist: number;
 };
 
 export async function getCustomerForAdmin(id: string): Promise<AdminCustomerDetail | null> {
@@ -296,12 +295,11 @@ export async function getCustomerForAdmin(id: string): Promise<AdminCustomerDeta
     .where(eq(s.users.id, id));
   if (!user || user.role !== "customer") return null;
 
-  const [orderRows, [sess], addresses, [rev], [wish]] = await Promise.all([
+  const [orderRows, [sess], addresses, [rev]] = await Promise.all([
     d.select(orderListColumns).from(s.orders).where(eq(s.orders.userId, id)).orderBy(desc(s.orders.createdAt)).limit(500),
     d.select({ n: count() }).from(s.sessions).where(and(eq(s.sessions.userId, id), sql`${s.sessions.expiresAt} > now()`)),
     d.select().from(s.addresses).where(eq(s.addresses.userId, id)).orderBy(desc(s.addresses.isDefault)),
     d.select({ n: count() }).from(s.reviews).where(eq(s.reviews.userId, id)),
-    d.select({ n: count() }).from(s.wishlistItems).where(eq(s.wishlistItems.userId, id)),
   ]);
   const orders = await withItemSummary(orderRows);
 
@@ -341,7 +339,6 @@ export async function getCustomerForAdmin(id: string): Promise<AdminCustomerDeta
     orders,
     addresses: allAddresses,
     reviews: rev.n,
-    wishlist: wish.n,
   };
 }
 

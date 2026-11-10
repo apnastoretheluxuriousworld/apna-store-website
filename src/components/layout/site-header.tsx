@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
-import { Heart, Menu, Search, ShoppingBag, User } from "lucide-react";
+import { Menu, Search, ShoppingBag, User } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { BagBadge } from "@/components/cart/bag-badge";
 import { useMenu } from "./menu-context";
@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 
 const iconLinks = [
   { label: "Search", href: "/search", icon: Search },
-  { label: "Wishlist", href: "/wishlist", icon: Heart },
   { label: "Account", href: "/account", icon: User },
   { label: "Cart", href: "/cart", icon: ShoppingBag },
 ];

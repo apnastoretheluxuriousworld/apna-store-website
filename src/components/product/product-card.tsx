@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { AddToBag } from "@/components/cart/add-to-bag";
 import { formatPrice } from "@/lib/format";
@@ -41,14 +41,6 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           </>
         )}
       </Link>
-
-      <button
-        type="button"
-        aria-label={`Add ${product.name} to wishlist`}
-        className="absolute top-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-ink-950/75 text-ivory/70 transition-colors hover:text-gold-400"
-      >
-        <Heart className="size-4" strokeWidth={1.5} />
-      </button>
 
       <div className="flex flex-1 flex-col p-3">
         <h3 className="truncate text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-gold-400 lg:text-xs">
