@@ -4,6 +4,9 @@ import { InfoPage, Prose } from "@/components/ui/info-page";
 import { ButtonLink } from "@/components/ui/button";
 import { getStoreCategories } from "@/lib/data/categories";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = {
   title: "About Us",
   description: "Apna Store — The Luxurious World. Curated watches, perfumes, handbags, shoes and more from Kothagudem.",

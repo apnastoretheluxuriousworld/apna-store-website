@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { Suspense } from "react";
 import { Home, LayoutGrid, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { BagBadge } from "@/components/cart/bag-badge";
@@ -92,22 +92,22 @@ function BottomBarView({ pathname }: { pathname: string }) {
           >
             {open && <Indicator />}
             <span className="relative size-[1.35rem]">
-              <motion.span
+              <m.span
                 className="absolute inset-0"
                 initial={false}
                 animate={{ opacity: open ? 0 : 1, rotate: open ? 90 : 0 }}
                 transition={{ duration: 0.25 }}
               >
                 <Menu className="size-[1.35rem]" strokeWidth={1.25} />
-              </motion.span>
-              <motion.span
+              </m.span>
+              <m.span
                 className="absolute inset-0"
                 initial={false}
                 animate={{ opacity: open ? 1 : 0, rotate: open ? 0 : -90 }}
                 transition={{ duration: 0.25 }}
               >
                 <X className="size-[1.35rem]" strokeWidth={1.5} />
-              </motion.span>
+              </m.span>
             </span>
             <span className="text-[0.625rem] tracking-wide">Menu</span>
           </button>

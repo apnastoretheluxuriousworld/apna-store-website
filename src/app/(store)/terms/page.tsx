@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { InfoPage, Prose } from "@/components/ui/info-page";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = {
   title: "Terms & Conditions",
   description: "The terms that apply when you browse and buy from Apna Store.",

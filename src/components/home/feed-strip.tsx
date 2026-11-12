@@ -4,14 +4,14 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   animate,
-  motion,
+  m,
   useMotionValue,
   useMotionValueEvent,
   useTransform,
   type AnimationPlaybackControls,
   type MotionValue,
 } from "motion/react";
-import { ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
 import type { FeedVideo } from "@/lib/data/feed";
 import { FeedViewer } from "./feed-viewer";
@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 
 /** Card centres are this far apart, as a fraction of the card width. */
 const GAP = 0.62;
+/** Card size (9:16, so width sets the height). */
+const CARD_W = "w-[11.2rem] sm:w-[12.8rem] lg:w-[14.4rem]";
 
 function useMedia(query: string) {
   return useSyncExternalStore(
@@ -54,22 +56,138 @@ function dist(i: number, pos: number, n: number) {
 }
 
 /**
- * Homepage "Our Feed": an endless, centre-focus carousel of 9:16 cards. It never
+ * Homepage "Our Feed". Phones/tablets get the centre-focus carousel; desktop
+ * gets a plain horizontally scrolling row.
+ */
+export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
+  const wide = useMedia("(min-width: 1024px)");
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <section className="overflow-hidden py-12 lg:py-20" aria-labelledby="feed-heading">
+      {wide ? (
+        <FeedRow videos={videos} paused={open !== null} onOpen={setOpen} />
+      ) : (
+        <FeedCarousel videos={videos} paused={open !== null} onOpen={setOpen} />
+      )}
+      {open !== null && <FeedViewer videos={videos} start={open} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+function FeedHeader({ onWatchAll, children }: { onWatchAll: () => void; children?: React.ReactNode }) {
+  return (
+    <Reveal>
+      <div className="mb-6 flex items-end justify-between gap-4 lg:mb-10">
+        <h2 id="feed-heading" className="text-[0.8rem] font-medium uppercase tracking-[0.22em] text-ivory lg:text-sm">
+          Our Feed
+        </h2>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onWatchAll}
+            className="group flex items-center gap-1 text-xs text-gold-400 transition-colors hover:text-gold-300"
+          >
+            Watch all
+            <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
+          </button>
+          {children}
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+/** Desktop: a plain row of cards that scrolls sideways. Hovering a card plays a silent preview; clicking opens the player. */
+function FeedRow({ videos, paused, onOpen }: { videos: FeedVideo[]; paused: boolean; onOpen: (i: number) => void }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const reduced = useMedia("(prefers-reduced-motion: reduce)");
+  const [edges, setEdges] = useState({ start: true, end: true });
+
+  const updateEdges = useCallback(() => {
+    const el = row.current;
+    if (!el) return;
+    setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+  }, []);
+  useEffect(() => {
+    updateEdges();
+    const el = row.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateEdges]);
+
+  const scrollBy = (dir: 1 | -1) => {
+    const el = row.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: reduced ? "auto" : "smooth" });
+  };
+  const arrow = "grid size-8 place-items-center rounded-full border border-gold-500/30 text-gold-300 transition-colors hover:border-gold-400 hover:text-gold-200 disabled:opacity-30 disabled:hover:border-gold-500/30";
+
+  return (
+    <div className="mx-auto max-w-site px-12">
+      <FeedHeader onWatchAll={() => onOpen(0)}>
+        <div className="flex gap-2">
+          <button type="button" aria-label="Scroll left" disabled={edges.start} onClick={() => scrollBy(-1)} className={arrow}>
+            <ChevronLeft className="size-4" strokeWidth={1.5} />
+          </button>
+          <button type="button" aria-label="Scroll right" disabled={edges.end} onClick={() => scrollBy(1)} className={arrow}>
+            <ChevronRight className="size-4" strokeWidth={1.5} />
+          </button>
+        </div>
+      </FeedHeader>
+      <Reveal>
+        <div ref={row} onScroll={updateEdges} className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-2 scrollbar-none">
+          {videos.map((v, i) => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => onOpen(i)}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+              aria-label={`Watch ${v.caption || `video ${i + 1}`} full screen`}
+              className={cn(
+                "relative block aspect-9/16 shrink-0 snap-start overflow-hidden rounded-2xl border border-gold-500/20 bg-ink-800 text-left",
+                "ring-gold-400/60 transition-[border-color,box-shadow] duration-500 hover:border-gold-500/50 hover:shadow-[0_24px_60px_-20px_rgba(212,175,55,0.45)] focus-visible:ring-2 focus-visible:outline-none",
+                CARD_W,
+              )}
+            >
+              {v.posterUrl ? (
+                <Image src={v.posterUrl} alt="" fill sizes="230px" unoptimized draggable={false} className="object-cover" />
+              ) : (
+                <video src={`${v.videoUrl}#t=0.1`} muted playsInline preload="metadata" className="absolute inset-0 size-full object-cover" />
+              )}
+              {hover === i && !paused && !reduced && <Preview video={v} sound={false} onSoundBlocked={noop} />}
+              {v.caption && (
+                <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-ink-950/90 via-ink-950/50 to-transparent p-4 pt-14">
+                  <span className="line-clamp-2 font-serif text-lg leading-snug text-ivory uppercase">{v.caption}</span>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+const noop = () => {};
+
+/**
+ * Mobile "Our Feed": an endless, centre-focus carousel of 9:16 cards. It never
  * moves by itself. Cards follow the finger/mouse, a flick rolls on with momentum
  * and settles on the nearest card. The centre card plays a silent preview only
  * while the carousel is on screen, the tab is visible and nothing is moving.
  * The speaker button on it turns sound on/off right in the carousel; tapping
  * anywhere else on it opens the full-screen player.
  */
-export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
+function FeedCarousel({ videos, paused, onOpen }: { videos: FeedVideo[]; paused: boolean; onOpen: (i: number) => void }) {
   const n = videos.length;
-  const [open, setOpen] = useState<number | null>(null);
   const [inView, setInView] = useState(false);
   const [moving, setMoving] = useState(false);
   /** Sound for the centre preview (off until the visitor taps the speaker). */
   const [sound, setSound] = useState(false);
   const muteSound = useCallback(() => setSound(false), []);
-  const wide = useMedia("(min-width: 1024px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const pageVisible = usePageVisible();
   const stage = useRef<HTMLDivElement>(null);
@@ -132,26 +250,12 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
   }
 
   const spacing = () => cardWidth.current * GAP;
-  const preview = inView && pageVisible && open === null && !reduced && !moving;
+  const preview = inView && pageVisible && !paused && !reduced && !moving;
 
   return (
-    <section className="overflow-hidden py-12 lg:py-20" aria-labelledby="feed-heading" aria-roledescription="carousel">
-      <div className="mx-auto max-w-site px-4 lg:px-12">
-        <Reveal>
-          <div className="mb-6 flex items-end justify-between gap-4 lg:mb-10">
-            <h2 id="feed-heading" className="text-[0.8rem] font-medium uppercase tracking-[0.22em] text-ivory lg:text-sm">
-              Our Feed
-            </h2>
-            <button
-              type="button"
-              onClick={() => setOpen(active)}
-              className="group flex items-center gap-1 text-xs text-gold-400 transition-colors hover:text-gold-300"
-            >
-              Watch all
-              <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-            </button>
-          </div>
-        </Reveal>
+    <div aria-roledescription="carousel">
+      <div className="mx-auto max-w-site px-4">
+        <FeedHeader onWatchAll={() => onOpen(active)} />
       </div>
 
       <Reveal>
@@ -206,7 +310,7 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
           }}
         >
           {/* Sizes the stage to one centre card (and is measured for drag maths). */}
-          <div className="invisible mx-auto aspect-9/16 w-56 sm:w-64 lg:w-72" aria-hidden />
+          <div className={cn("invisible mx-auto aspect-9/16", CARD_W)} aria-hidden />
 
           {videos.map((v, i) => (
             <Card
@@ -215,7 +319,6 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
               index={i}
               n={n}
               pos={pos}
-              wide={wide}
               centre={i === active}
               preview={preview && i === active}
               sound={sound}
@@ -223,7 +326,7 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
               onSoundBlocked={muteSound}
               onClick={() => {
                 if (drag.current?.moved) return; // it was a swipe
-                if (i === active) setOpen(i);
+                if (i === active) onOpen(i);
                 else goTo(i);
               }}
             />
@@ -254,8 +357,7 @@ export function FeedStrip({ videos }: { videos: FeedVideo[] }) {
         )}
       </Reveal>
 
-      {open !== null && <FeedViewer videos={videos} start={open} onClose={() => setOpen(null)} />}
-    </section>
+    </div>
   );
 }
 
@@ -264,7 +366,6 @@ function Card({
   index,
   n,
   pos,
-  wide,
   centre,
   preview,
   sound,
@@ -276,7 +377,6 @@ function Card({
   index: number;
   n: number;
   pos: MotionValue<number>;
-  wide: boolean;
   centre: boolean;
   preview: boolean;
   sound: boolean;
@@ -298,20 +398,19 @@ function Card({
   });
   const opacity = useTransform(d, (d) => {
     const a = Math.abs(d);
-    const lastVisible = wide ? 2 : 1;
-    return a <= lastVisible ? 1 : Math.max(0, 1 - (a - lastVisible));
+    return a <= 1 ? 1 : Math.max(0, 1 - (a - 1));
   });
   const zIndex = useTransform(d, (d) => Math.round(100 - Math.abs(d) * 10));
   const dim = useTransform(d, (d) => {
     const a = Math.abs(d);
     return a <= 1 ? a * 0.55 : Math.min(0.85, 0.55 + (a - 1) * 0.2);
   });
-  const pointerEvents = useTransform(d, (d) => (Math.abs(d) <= (wide ? 2.5 : 1.5) ? "auto" : "none"));
+  const pointerEvents = useTransform(d, (d) => (Math.abs(d) <= 1.5 ? "auto" : "none"));
   const label = v.caption || `video ${index + 1}`;
 
   return (
     // A div (not a <button>) so the speaker button can sit inside it.
-    <motion.div
+    <m.div
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -325,13 +424,14 @@ function Card({
       aria-current={centre || undefined}
       style={{ x, scale, opacity, zIndex, pointerEvents }}
       className={cn(
-        "absolute inset-y-0 inset-x-0 mx-auto block aspect-9/16 cursor-pointer w-56 overflow-hidden rounded-2xl border bg-ink-800 text-left will-change-transform sm:w-64 lg:w-72",
+        "absolute inset-y-0 inset-x-0 mx-auto block aspect-9/16 cursor-pointer overflow-hidden rounded-2xl border bg-ink-800 text-left will-change-transform",
+        CARD_W,
         "ring-gold-400/60 transition-[border-color,box-shadow] duration-500 focus-visible:ring-2 focus-visible:outline-none",
         centre ? "border-gold-500/50 shadow-[0_24px_60px_-20px_rgba(212,175,55,0.45)]" : "border-gold-500/15",
       )}
     >
       {v.posterUrl ? (
-        <Image src={v.posterUrl} alt="" fill sizes="(min-width: 1024px) 288px, 256px" unoptimized draggable={false} className="object-cover" />
+        <Image src={v.posterUrl} alt="" fill sizes="205px" unoptimized draggable={false} className="object-cover" />
       ) : (
         <video src={`${v.videoUrl}#t=0.1`} muted playsInline preload="metadata" className="absolute inset-0 size-full object-cover" />
       )}
@@ -358,8 +458,8 @@ function Card({
         </button>
       )}
       {/* Dim the cards behind. */}
-      <motion.span aria-hidden style={{ opacity: dim }} className="pointer-events-none absolute inset-0 bg-ink-950" />
-    </motion.div>
+      <m.span aria-hidden style={{ opacity: dim }} className="pointer-events-none absolute inset-0 bg-ink-950" />
+    </m.div>
   );
 }
 

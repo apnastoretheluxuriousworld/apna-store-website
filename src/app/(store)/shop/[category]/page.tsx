@@ -6,7 +6,10 @@ import { CategoryGrid } from "@/components/product/category-grid";
 import { CollectionRow } from "@/components/product/collection-row";
 import { getStoreCategories } from "@/lib/data/categories";
 import { getCategoryProductsPage, getCollectionRowProducts, getProductCounts } from "@/lib/data/products";
-import { PageLoader } from "@/components/ui/brand-loader";
+import { CategorySkeleton } from "@/components/ui/skeleton";
+
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
 
 export async function generateMetadata({ params }: PageProps<"/shop/[category]">): Promise<Metadata> {
   const { category } = await params;
@@ -81,8 +84,4 @@ async function CategoryContent({ params }: { params: PageProps<"/shop/[category]
       )}
     </>
   );
-}
-
-function CategorySkeleton() {
-  return <PageLoader label="Loading collection" />;
 }

@@ -1,10 +1,7 @@
-import { BrandLoader } from "@/components/ui/brand-loader";
+import { StorePageSkeleton } from "@/components/ui/skeleton";
 
-// Shown while a store page streams in (e.g. a page that isn't cached yet).
+// Shown while a store page that has no closer loading state streams in: the
+// page outline in grey (title + product grid), never a full-page spinner.
 export default function Loading() {
-  return (
-    <div className="grain flex min-h-[80svh] items-center justify-center overflow-hidden pt-24 pb-16">
-      <BrandLoader />
-    </div>
-  );
+  return <StorePageSkeleton />;
 }

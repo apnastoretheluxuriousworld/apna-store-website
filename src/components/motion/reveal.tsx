@@ -1,58 +1,25 @@
 "use client";
 
-import { motion, type HTMLMotionProps } from "motion/react";
+import { m, type HTMLMotionProps } from "motion/react";
 
-const ease = [0.22, 1, 0.36, 1] as const;
+/*
+ * These used to fade + lift content in as it scrolled into view. That left
+ * blank areas while scrolling and made the store feel slow, so they now render
+ * content immediately. Kept as wrappers so the page markup doesn't change.
+ */
 
-type RevealProps = HTMLMotionProps<"div"> & {
-  delay?: number;
-  y?: number;
-};
+type RevealProps = HTMLMotionProps<"div"> & { delay?: number; y?: number };
 
-/** Fades + lifts content into view once, as it scrolls into the viewport. */
-export function Reveal({ delay = 0, y = 28, children, ...rest }: RevealProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px -10% 0px" }}
-      transition={{ duration: 0.7, ease, delay }}
-      {...rest}
-    >
-      {children}
-    </motion.div>
-  );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- old animation props, now ignored
+export function Reveal({ delay: _delay, y: _y, ...rest }: RevealProps) {
+  return <m.div {...rest} />;
 }
 
-/** Staggers its direct <RevealItem> children. */
-export function RevealGroup({
-  stagger = 0.08,
-  children,
-  ...rest
-}: HTMLMotionProps<"div"> & { stagger?: number }) {
-  return (
-    <motion.div
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "0px 0px -10% 0px" }}
-      variants={{ show: { transition: { staggerChildren: stagger } } }}
-      {...rest}
-    >
-      {children}
-    </motion.div>
-  );
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- old animation prop, now ignored
+export function RevealGroup({ stagger: _stagger, ...rest }: HTMLMotionProps<"div"> & { stagger?: number }) {
+  return <m.div {...rest} />;
 }
 
-export function RevealItem({ children, ...rest }: HTMLMotionProps<"div">) {
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 24 },
-        show: { opacity: 1, y: 0, transition: { duration: 0.8, ease } },
-      }}
-      {...rest}
-    >
-      {children}
-    </motion.div>
-  );
+export function RevealItem(props: HTMLMotionProps<"div">) {
+  return <m.div {...props} />;
 }

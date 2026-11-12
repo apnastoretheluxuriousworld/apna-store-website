@@ -4,6 +4,9 @@ import { InstagramIcon, WhatsappIcon, YoutubeIcon } from "@/components/brand/soc
 import { InfoPage } from "@/components/ui/info-page";
 import { getStoreInfo } from "@/lib/data/settings";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = {
   title: "Contact Us",
   description: "Call, WhatsApp or visit Apna Store in Kothagudem for orders, product questions and after-sales care.",

@@ -4,20 +4,24 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { requireAdminView } from "@/lib/auth/session";
 import { listCategoriesForAdmin } from "@/lib/data/categories";
+import { listOffersForAdmin } from "@/lib/data/offers";
 import { HeroSlideForm } from "../hero-slide-form";
 
 export const metadata: Metadata = { title: "Add banner" };
 
 export default async function NewHeroSlidePage() {
   await requireAdminView();
-  const categories = await listCategoriesForAdmin();
+  const [categories, offers] = await Promise.all([listCategoriesForAdmin(), listOffersForAdmin()]);
   return (
     <>
       <Link href="/admin/hero" className="mb-3 inline-flex items-center gap-1.5 text-xs text-mute hover:text-gold-400">
         <ArrowLeft className="size-3.5" /> Hero banners
       </Link>
       <PageHeader title="Add banner" />
-      <HeroSlideForm categories={categories.map((c) => ({ name: c.name, slug: c.slug }))} />
+      <HeroSlideForm
+        categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
+        offers={offers.map((o) => ({ title: o.title, slug: o.slug }))}
+      />
     </>
   );
 }

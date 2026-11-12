@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { CartView } from "@/components/cart/cart-view";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Cart", robots: { index: false } };
 
 export default function CartPage() {

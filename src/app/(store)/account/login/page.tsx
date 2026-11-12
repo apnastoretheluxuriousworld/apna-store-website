@@ -4,6 +4,9 @@ import { AuthShell } from "@/components/account/auth-shell";
 import { SignInForm, SwitchAuthLink } from "@/components/account/auth-forms";
 import { RedirectIfSignedIn } from "../redirect-if-signed-in";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 
 export default function SignInPage({ searchParams }: PageProps<"/account/login">) {

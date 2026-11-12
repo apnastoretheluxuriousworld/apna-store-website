@@ -52,7 +52,7 @@ export function StoreInfoForm({ initial }: { initial: StoreInfoValues }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5", formState.isDirty && "pb-20 lg:pb-0")}>
-      <div className="grid gap-3 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-5">
         <Section title="Phone & email" hint="Shown in the footer and on the Contact page. Leave blank to hide.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Phone" error={errors.phone?.message} htmlFor="phone">

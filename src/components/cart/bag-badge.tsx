@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useCartCount } from "./cart-store";
 
@@ -10,7 +10,7 @@ export function BagBadge({ className }: { className?: string }) {
   return (
     <AnimatePresence>
       {n > 0 && (
-        <motion.span
+        <m.span
           key={n}
           initial={{ scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -23,7 +23,7 @@ export function BagBadge({ className }: { className?: string }) {
           aria-label={`${n} in bag`}
         >
           {n > 99 ? "99+" : n}
-        </motion.span>
+        </m.span>
       )}
     </AnimatePresence>
   );

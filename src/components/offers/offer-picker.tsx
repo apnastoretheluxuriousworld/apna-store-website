@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { VariantSheet } from "@/components/cart/add-to-bag";
@@ -218,7 +218,7 @@ function ProductTile({
         )}
         <AnimatePresence>
           {on && (
-            <motion.span
+            <m.span
               key={count}
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -226,7 +226,7 @@ function ProductTile({
               className="bg-gold absolute top-2 right-2 grid h-7 min-w-7 place-items-center rounded-full px-1.5 text-xs font-semibold text-ink-950 tabular-nums"
             >
               {count > 1 ? `×${count}` : <Check className="size-4" strokeWidth={3} />}
-            </motion.span>
+            </m.span>
           )}
         </AnimatePresence>
         {soldOut && (

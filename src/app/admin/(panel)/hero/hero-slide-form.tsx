@@ -42,9 +42,12 @@ const CUSTOM = "__custom";
 export function HeroSlideForm({
   initial,
   categories,
+  offers = [],
 }: {
   initial?: HeroSlideFormValues & { id: string };
   categories: { name: string; slug: string }[];
+  /** Offers the button can open (Admin → Offers). */
+  offers?: { title: string; slug: string }[];
 }) {
   const router = useRouter();
   const editing = !!initial;
@@ -64,7 +67,7 @@ export function HeroSlideForm({
   const showActions = !editing || formState.isDirty;
 
   // Button destination: none, all collections, one collection, or a typed link.
-  const presets = ["", "/shop", ...categories.map((c) => `/shop/${c.slug}`)];
+  const presets = ["", "/shop", ...categories.map((c) => `/shop/${c.slug}`), "/offers", ...offers.map((o) => `/offers/${o.slug}`)];
   const [customLink, setCustomLink] = useState(() => !presets.includes(initial?.ctaHref ?? EMPTY.ctaHref));
   const linkChoice = customLink ? CUSTOM : v.ctaHref;
 
@@ -95,7 +98,7 @@ export function HeroSlideForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_1fr] lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,22rem)_1fr] lg:gap-5">
         {/* Image + live preview */}
         <div className="space-y-3 lg:space-y-5">
           <Card>
@@ -171,6 +174,12 @@ export function HeroSlideForm({
                 {categories.map((c) => (
                   <option key={c.slug} value={`/shop/${c.slug}`}>
                     {c.name}
+                  </option>
+                ))}
+                <option value="/offers">All offers</option>
+                {offers.map((o) => (
+                  <option key={o.slug} value={`/offers/${o.slug}`}>
+                    Offer: {o.title}
                   </option>
                 ))}
                 <option value={CUSTOM}>Other link…</option>

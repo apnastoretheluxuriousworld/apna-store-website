@@ -10,6 +10,9 @@ import { requireCustomerView } from "@/lib/auth/session";
 import { getMyOrder } from "@/lib/data/customers";
 import { getMyReviewedProductIds } from "@/lib/data/reviews";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Order details", robots: { index: false } };
 
 export default function OrderPage({ params }: PageProps<"/account/orders/[orderNumber]">) {

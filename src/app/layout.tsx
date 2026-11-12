@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Montserrat } from "next/font/google";
 import localFont from "next/font/local";
 import { site } from "@/lib/site";
+import { SPLASH_GATE } from "@/components/brand/splash-gate";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -92,6 +93,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${cormorant.variable} ${montserrat.variable} ${interNum.variable} ${interRupee.variable} ${interNumSerif.variable} ${interRupeeSerif.variable} antialiased`}
     >
+      <head>
+        {/* Must run before the first paint: decides whether the brand splash shows (components/brand/brand-splash.tsx). */}
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_GATE }} />
+      </head>
       <body className="min-h-dvh">{children}</body>
     </html>
   );

@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { AlertCircle, Gift, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from "lucide-react";
 import { ButtonLink, buttonClass } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { removeBundle, removeFromCart, setCartQty } from "./cart-store";
 import { useCartQuote, type BagBundle, type BagLine } from "./use-cart-quote";
-import { PageLoader } from "@/components/ui/brand-loader";
+import { CartSkeleton } from "@/components/ui/skeleton";
 
 export function CartView() {
   const { lines, bundles, totals, settings, hasIssues, loading, ready, error, empty } = useCartQuote();
@@ -36,7 +36,7 @@ export function CartView() {
   const toFree = freeFrom ? freeFrom - totals.subtotal : 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
       <section aria-label="Items in your cart">
         <p className="mb-3 text-xs uppercase tracking-[0.2em] text-mute">
           {count} {count === 1 ? "piece" : "pieces"}
@@ -44,7 +44,7 @@ export function CartView() {
         <ul className="space-y-3">
           <AnimatePresence initial={false}>
             {bundles.map((b) => (
-              <motion.li
+              <m.li
                 key={`offer:${b.id}`}
                 layout
                 initial={{ opacity: 0, y: 8 }}
@@ -52,10 +52,10 @@ export function CartView() {
                 exit={{ opacity: 0, x: -24, transition: { duration: 0.2 } }}
               >
                 <BundleRow bundle={b} />
-              </motion.li>
+              </m.li>
             ))}
             {lines.map((l) => (
-              <motion.li
+              <m.li
                 key={l.key}
                 layout
                 initial={{ opacity: 0, y: 8 }}
@@ -63,7 +63,7 @@ export function CartView() {
                 exit={{ opacity: 0, x: -24, transition: { duration: 0.2 } }}
               >
                 <CartRow line={l} />
-              </motion.li>
+              </m.li>
             ))}
           </AnimatePresence>
         </ul>
@@ -100,6 +100,7 @@ export function CartView() {
           )}
           <Link
             href="/checkout"
+            prefetch
             aria-disabled={hasIssues || loading}
             className={cn(buttonClass("gold", "lg", "mt-5 w-full"), (hasIssues || loading) && "pointer-events-none opacity-50")}
           >
@@ -269,8 +270,4 @@ function BundleRow({ bundle: b }: { bundle: BagBundle }) {
       </ul>
     </div>
   );
-}
-
-export function CartSkeleton() {
-  return <PageLoader label="Loading your cart" />;
 }

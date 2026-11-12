@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FeedbackTabBadge } from "@/components/feedback/feedback-tab-badge";
 import { cn } from "@/lib/utils";
-import { PageLoader } from "@/components/ui/brand-loader";
+export { AccountSkeleton } from "@/components/ui/skeleton";
 
 const tabs = [
   { key: "orders", label: "My Orders", href: "/account" },
@@ -24,7 +24,6 @@ export function AccountFrame({ active, children }: { active?: (typeof tabs)[numb
             <Link
               key={t.key}
               href={t.href}
-              transitionTypes={["tab"]}
               aria-current={t.key === active ? "page" : undefined}
               className={cn(
                 "-mb-px shrink-0 border-b-2 px-3 pb-3 text-xs whitespace-nowrap uppercase tracking-[0.18em] transition-colors",
@@ -44,8 +43,4 @@ export function AccountFrame({ active, children }: { active?: (typeof tabs)[numb
       <div className="mt-6">{children}</div>
     </section>
   );
-}
-
-export function AccountSkeleton() {
-  return <PageLoader label="Loading your account" />;
 }

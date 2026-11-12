@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { changePassword, deleteUserSessions } from "@/lib/auth/core";
 import { HashBusy } from "@/lib/auth/password";
 import { currentSessionToken, requireAdmin } from "@/lib/auth/session";
@@ -34,6 +35,7 @@ export async function saveStoreInfo(input: unknown): Promise<ActionResult> {
       }
     });
     updateTag(SETTINGS_TAG);
+    warmStore(); // rebuild the store pages' cache in the background
     revalidatePath("/admin", "layout");
     return { ok: true };
   } catch (e) {
@@ -60,6 +62,7 @@ export async function savePaymentSettings(input: unknown): Promise<ActionResult>
     const oldQr = (current?.value as { qrUrl?: string } | undefined)?.qrUrl;
     if (oldQr && oldQr !== value.qrUrl) await deleteUnreferencedUploads([oldQr]);
     updateTag(SETTINGS_TAG);
+    warmStore(); // rebuild the store pages' cache in the background
     revalidatePath("/admin", "layout");
     return { ok: true };
   } catch (e) {

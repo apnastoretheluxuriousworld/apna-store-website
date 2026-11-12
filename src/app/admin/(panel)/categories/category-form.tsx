@@ -133,7 +133,7 @@ export function CategoryForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
-      <div className="grid gap-3 lg:grid-cols-3 lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-5">
         {/* Details */}
         <Card className="space-y-4 lg:col-span-2">
           <Field label="Name" error={errors.name?.message} htmlFor="name">

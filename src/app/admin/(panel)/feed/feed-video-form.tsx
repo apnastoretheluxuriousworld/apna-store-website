@@ -111,7 +111,7 @@ export function FeedVideoForm({ initial }: { initial: FeedVideoFormValues }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-5">
         <Card className="space-y-3">
           <div className="relative mx-auto aspect-9/16 w-full max-w-72 overflow-hidden rounded-lg bg-ink-950 lg:max-w-none">
             <video

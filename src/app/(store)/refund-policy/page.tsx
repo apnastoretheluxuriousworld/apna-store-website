@@ -5,6 +5,9 @@ import { getCheckoutSettings } from "@/lib/data/checkout";
 import { getStoreInfo } from "@/lib/data/settings";
 import { formatPrice } from "@/lib/format";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = {
   title: "Refund Policy",
   description: "Cancellations, returns, exchanges and refunds at Apna Store.",

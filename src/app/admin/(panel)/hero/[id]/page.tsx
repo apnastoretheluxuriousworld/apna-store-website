@@ -6,6 +6,7 @@ import { z } from "zod";
 import { PageHeader } from "@/components/admin/ui";
 import { requireAdminView } from "@/lib/auth/session";
 import { listCategoriesForAdmin } from "@/lib/data/categories";
+import { listOffersForAdmin } from "@/lib/data/offers";
 import { getHeroSlideForEdit } from "@/lib/data/hero";
 import { HeroSlideForm } from "../hero-slide-form";
 
@@ -15,7 +16,7 @@ export default async function EditHeroSlidePage({ params }: PageProps<"/admin/he
   await requireAdminView();
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const [slide, categories] = await Promise.all([getHeroSlideForEdit(id), listCategoriesForAdmin()]);
+  const [slide, categories, offers] = await Promise.all([getHeroSlideForEdit(id), listCategoriesForAdmin(), listOffersForAdmin()]);
   if (!slide) notFound();
 
   return (
@@ -24,7 +25,11 @@ export default async function EditHeroSlidePage({ params }: PageProps<"/admin/he
         <ArrowLeft className="size-3.5" /> Hero banners
       </Link>
       <PageHeader title="Edit banner" description={slide.isActive ? "On the homepage" : "Hidden"} />
-      <HeroSlideForm initial={slide} categories={categories.map((c) => ({ name: c.name, slug: c.slug }))} />
+      <HeroSlideForm
+        initial={slide}
+        categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
+        offers={offers.map((o) => ({ title: o.title, slug: o.slug }))}
+      />
     </>
   );
 }

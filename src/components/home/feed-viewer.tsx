@@ -95,7 +95,6 @@ export function FeedViewer({ videos, start, onClose }: { videos: FeedVideo[]; st
     >
       <div
         ref={scroller}
-        data-lenis-prevent
         // Vertical touch swipes scroll natively (snap). Horizontal swipes (touch or mouse)
         // and vertical mouse drags are handled here.
         onTouchStart={(e) => {

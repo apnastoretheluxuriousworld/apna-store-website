@@ -4,6 +4,9 @@ import { CheckoutView, type CheckoutPrefill } from "@/components/checkout/checko
 import { getCurrentUser } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Checkout", robots: { index: false } };
 
 export default function CheckoutPage() {

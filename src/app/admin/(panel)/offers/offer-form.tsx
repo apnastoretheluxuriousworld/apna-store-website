@@ -110,7 +110,7 @@ export function OfferForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,20rem)_1fr] lg:gap-5">
         <div className="space-y-3 lg:space-y-5">
           <Card>
             <Field
@@ -363,7 +363,7 @@ function ProductPicker({
       {products.length === 0 ? (
         <p className="rounded-lg border border-dashed border-ink-600 py-8 text-center text-sm text-mute">Add products to the store first.</p>
       ) : (
-        <ul className="max-h-[26rem] divide-y divide-ink-600/50 overflow-y-auto rounded-lg border border-ink-600/70" data-lenis-prevent>
+        <ul className="max-h-[26rem] divide-y divide-ink-600/50 overflow-y-auto rounded-lg border border-ink-600/70">
           {matches.map((p) => {
             const on = selected.has(p.id);
             return (

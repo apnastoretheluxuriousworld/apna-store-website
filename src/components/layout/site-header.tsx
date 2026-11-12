@@ -61,6 +61,7 @@ export function SiteHeader({ categories }: { categories: NavCategory[] }) {
               <Link
                 key={c.slug}
                 href={`/shop/${c.slug}`}
+                prefetch
                 className="group relative text-[0.7rem] uppercase tracking-[0.25em] text-ivory/80 transition-colors hover:text-gold-300"
               >
                 {c.name}

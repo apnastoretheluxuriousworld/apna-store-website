@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -57,7 +58,10 @@ export async function setOrderStatus(id: string, input: { status: string; note?:
     return true;
   });
   if (!ok) return { ok: false, error: "Order not found." };
-  if (ok === "stock") updateTag(PRODUCTS_TAG);
+  if (ok === "stock") {
+    updateTag(PRODUCTS_TAG);
+    warmStore();
+  }
   revalidatePath("/admin", "layout");
   revalidatePath("/account", "layout");
   return { ok: true };

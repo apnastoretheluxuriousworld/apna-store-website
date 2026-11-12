@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion, type PanInfo } from "motion/react";
+import { AnimatePresence, m, type PanInfo } from "motion/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { ArrowUpRight, ChevronRight, Search, User, X } from "lucide-react";
 import { useMenu } from "./menu-context";
@@ -57,7 +57,7 @@ export function MenuOverlay({ categories }: { categories: NavCategory[] }) {
     <AnimatePresence onExitComplete={onClosed}>
       {open && (
         <>
-          <motion.div
+          <m.div
             key="backdrop"
             className="fixed inset-0 z-40 bg-black/70"
             initial={{ opacity: 0 }}
@@ -97,13 +97,13 @@ type PanelProps = { onClose: () => void; onLink: (href: string) => void; categor
 
 function DesktopSidebar({ onClose, onLink, categories }: PanelProps) {
   return (
-    <motion.aside
+    <m.aside
       onClick={closeOnLink(onLink)}
       id="site-menu"
       role="dialog"
       aria-modal="true"
       aria-label="Menu"
-      data-lenis-prevent
+     
       className="grain fixed inset-y-0 right-0 z-40 flex w-[min(36rem,92vw)] flex-col overflow-y-auto border-l border-gold-500/15 bg-ink-950 shadow-[-30px_0_80px_-20px_rgba(0,0,0,0.9)]"
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
@@ -125,14 +125,14 @@ function DesktopSidebar({ onClose, onLink, categories }: PanelProps) {
           </button>
         </div>
 
-        <motion.nav variants={list} initial="hidden" animate="show" className="mt-12 flex-1" aria-label="Categories">
-          <motion.p variants={item} className="eyebrow mb-5">
+        <m.nav variants={list} initial="hidden" animate="show" className="mt-12 flex-1" aria-label="Categories">
+          <m.p variants={item} className="eyebrow mb-5">
             Collections
-          </motion.p>
+          </m.p>
           <ul className="divide-y divide-ink-600/70 border-y border-ink-600/70">
             {categories.map((c, i) => (
-              <motion.li key={c.slug} variants={item}>
-                <Link href={`/shop/${c.slug}`} className="group flex items-center gap-5 py-3.5">
+              <m.li key={c.slug} variants={item}>
+                <Link href={`/shop/${c.slug}`} prefetch className="group flex items-center gap-5 py-3.5">
                   <span className="w-6 text-xs text-mute tabular-nums">
                     {String(i + 1).padStart(2, "0")}
                   </span>
@@ -147,11 +147,11 @@ function DesktopSidebar({ onClose, onLink, categories }: PanelProps) {
                     strokeWidth={1}
                   />
                 </Link>
-              </motion.li>
+              </m.li>
             ))}
           </ul>
 
-          <motion.div variants={item} className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4">
+          <m.div variants={item} className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4">
             {secondaryLinks.map((l) => (
               <Link
                 key={l.href}
@@ -161,16 +161,16 @@ function DesktopSidebar({ onClose, onLink, categories }: PanelProps) {
                 {l.label}
               </Link>
             ))}
-          </motion.div>
+          </m.div>
 
-          <motion.div variants={item} className="mt-10">
+          <m.div variants={item} className="mt-10">
             <ButtonLink href="/shop" size="lg">
               Shop all <ArrowUpRight className="size-4" strokeWidth={1.5} />
             </ButtonLink>
-          </motion.div>
-        </motion.nav>
+          </m.div>
+        </m.nav>
       </div>
-    </motion.aside>
+    </m.aside>
   );
 }
 
@@ -183,12 +183,12 @@ function MobileSheet({ onClose, onLink, categories }: PanelProps) {
   };
 
   return (
-    <motion.div
+    <m.div
       id="site-menu"
       role="dialog"
       aria-modal="true"
       aria-label="Menu"
-      data-lenis-prevent
+     
       className="fixed inset-x-0 bottom-[calc(var(--bottom-bar-h)+env(safe-area-inset-bottom))] z-40 max-h-[75dvh] overflow-y-auto rounded-t-2xl border-t border-gold-500/20 bg-ink-850 px-5 pt-2 pb-5 shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.8)]"
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
@@ -215,23 +215,23 @@ function MobileSheet({ onClose, onLink, categories }: PanelProps) {
       <p className="mt-5 mb-3 text-[0.65rem] font-medium uppercase tracking-[0.22em] text-ivory/80">
         Collections
       </p>
-      <motion.ul
+      <m.ul
         className="grid grid-cols-4 gap-x-2 gap-y-4"
         initial="hidden"
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.03, delayChildren: 0.15 } } }}
       >
         {categories.map((c) => (
-          <motion.li key={c.slug} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-            <Link href={`/shop/${c.slug}`} className="group flex flex-col items-center gap-1.5">
+          <m.li key={c.slug} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+            <Link href={`/shop/${c.slug}`} prefetch className="group flex flex-col items-center gap-1.5">
               <span className="grid size-12 place-items-center rounded-full border border-gold-500/40 bg-ink-900 transition-all duration-300 group-hover:border-gold-300 group-active:scale-95">
                 <CategoryIcon slug={c.slug} className="size-5 text-gold-400" strokeWidth={1.1} />
               </span>
               <span className="text-[0.65rem] text-ivory/80 group-hover:text-gold-300">{c.name}</span>
             </Link>
-          </motion.li>
+          </m.li>
         ))}
-      </motion.ul>
+      </m.ul>
 
       <div className="hairline my-5 opacity-30" />
 
@@ -261,6 +261,6 @@ function MobileSheet({ onClose, onLink, categories }: PanelProps) {
           </li>
         ))}
       </ul>
-    </motion.div>
+    </m.div>
   );
 }

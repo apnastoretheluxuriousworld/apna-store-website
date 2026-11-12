@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { after } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
@@ -15,6 +16,7 @@ import { signalAdmins } from "@/lib/realtime/server";
 /** Refresh the storefront (reviews + card ratings) and the admin's client cache. */
 function reviewsChanged() {
   updateTag(REVIEWS_TAG);
+  warmStore(); // rebuild the store pages' cache in the background
   revalidatePath("/admin", "layout");
 }
 

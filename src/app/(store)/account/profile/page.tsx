@@ -7,6 +7,9 @@ import { cacheLife } from "next/cache";
 import { requireCustomerView } from "@/lib/auth/session";
 import { formatPhone } from "@/lib/validation/customer";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Profile", robots: { index: false } };
 
 export default function ProfilePage() {

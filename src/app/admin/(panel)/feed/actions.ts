@@ -2,6 +2,7 @@
 
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -13,6 +14,7 @@ import { zodFieldErrors, type ActionResult } from "@/lib/actions";
 /** Refresh the homepage and the admin's client cache. */
 function feedChanged() {
   updateTag(FEED_TAG);
+  warmStore(); // rebuild the store pages' cache in the background
   revalidatePath("/admin", "layout");
 }
 

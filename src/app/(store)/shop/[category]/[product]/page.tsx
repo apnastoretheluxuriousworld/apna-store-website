@@ -13,7 +13,10 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { getRelatedProducts, getStoreProductDetail } from "@/lib/data/products";
 import { getStoreInfo } from "@/lib/data/settings";
 import { site } from "@/lib/site";
-import { PageLoader } from "@/components/ui/brand-loader";
+import { ProductDetailSkeleton } from "@/components/ui/skeleton";
+
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
 
 type Params = PageProps<"/shop/[category]/[product]">["params"];
 
@@ -39,7 +42,7 @@ const promises = [
 export default function ProductPage({ params }: PageProps<"/shop/[category]/[product]">) {
   return (
     <div className="pt-16 pb-12 lg:pt-28">
-      <Suspense fallback={<ProductSkeleton />}>
+      <Suspense fallback={<ProductDetailSkeleton />}>
         <ProductContent params={params} />
       </Suspense>
     </div>
@@ -86,7 +89,7 @@ async function ProductContent({ params }: { params: Params }) {
           <span className="truncate text-stone">{product.name}</span>
         </nav>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
           <div className="lg:sticky lg:top-28 lg:self-start">
             <ProductGallery media={product.media} name={product.name} categorySlug={product.categorySlug} />
           </div>
@@ -181,8 +184,4 @@ async function ProductContent({ params }: { params: Params }) {
       )}
     </>
   );
-}
-
-function ProductSkeleton() {
-  return <PageLoader label="Loading product" />;
 }

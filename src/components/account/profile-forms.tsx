@@ -20,12 +20,13 @@ export function NameForm({ name }: { name: string }) {
   return (
     <form action={action} noValidate>
       <NameField key={state.values?.name ?? name} defaultValue={state.values?.name ?? name} error={state.fieldErrors?.name} />
-      <FormError message={state.error} />
+      <FormError message={pending ? undefined : state.error} />
       <div className="mt-3 flex items-center gap-3">
         <Button type="submit" size="sm" disabled={pending}>
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Save name"}
+          Save name
         </Button>
-        <Saved show={!!state.ok && !pending} text="Saved" />
+        {/* Optimistic: "Saved" shows on tap; if the server refuses, it goes and the error shows instead. */}
+        <Saved show={pending || !!state.ok} text="Saved" />
       </div>
     </form>
   );

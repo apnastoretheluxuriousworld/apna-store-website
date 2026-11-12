@@ -71,7 +71,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     <>
       <PageHeader title="Orders" description="New orders, UPI payments to verify, and delivery progress." />
 
-      <nav aria-label="Order filters" className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
+      <nav aria-label="Order filters" className="-mx-3 mb-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4 lg:mx-0 lg:px-0">
         {ORDER_TABS.map((t) => {
           const n = t in counts ? counts[t as keyof typeof counts] : 0;
           const active = f.tab === t;

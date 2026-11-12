@@ -6,6 +6,9 @@ import { CustomerChat } from "@/components/feedback/customer-chat";
 import { requireCustomerView } from "@/lib/auth/session";
 import { getMyConversation } from "@/lib/data/feedback";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Feedback", robots: { index: false } };
 
 export default function FeedbackPage({ searchParams }: PageProps<"/account/feedback">) {

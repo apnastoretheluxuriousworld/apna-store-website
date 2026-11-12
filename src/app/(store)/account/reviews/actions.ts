@@ -2,6 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { after } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -127,6 +128,7 @@ export async function submitReview(input: unknown): Promise<ActionResult> {
     });
   });
   updateTag(REVIEWS_TAG); // an edited review leaves the product page until approved again
+  warmStore(); // rebuild the store pages' cache in the background
   revalidatePath("/account", "layout");
   return { ok: true };
 }

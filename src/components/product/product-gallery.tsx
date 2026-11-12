@@ -7,6 +7,7 @@ import { CategoryIcon } from "@/components/brand/category-icon";
 import { MediaLightbox } from "@/components/reviews/media-viewer";
 import type { ProductMedia } from "@/lib/data/products";
 import { cn } from "@/lib/utils";
+import { ShareButton } from "./share-button";
 
 /**
  * Product photos & videos. Swipe (phones) or arrows/thumbnails (desktop);
@@ -26,9 +27,10 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
 
   if (!media.length) {
     return (
-      <div className="relative grid aspect-4/5 place-items-center overflow-hidden rounded-2xl border border-gold-500/10 bg-ink-900">
+      <div className="relative grid aspect-8/5 place-items-center overflow-hidden rounded-2xl lg:aspect-4/5 border border-gold-500/10 bg-ink-900">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_55%,rgba(212,175,55,0.2),transparent_60%)]" />
         <CategoryIcon slug={categorySlug} className="relative size-24 text-gold-400/80" strokeWidth={0.6} />
+        <ShareButton name={name} className="absolute top-3 right-3 z-10" />
       </div>
     );
   }
@@ -42,7 +44,7 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
             const el = e.currentTarget;
             setIndex(Math.round(el.scrollLeft / el.clientWidth));
           }}
-          className="flex aspect-4/5 snap-x snap-mandatory overflow-x-auto scrollbar-none sm:rounded-2xl sm:border sm:border-gold-500/10"
+          className="flex aspect-8/5 snap-x snap-mandatory lg:aspect-4/5 overflow-x-auto scrollbar-none sm:rounded-2xl sm:border sm:border-gold-500/10"
           aria-roledescription="carousel"
           aria-label={`${name} photos`}
         >
@@ -61,7 +63,7 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
                   fill
                   priority={i === 0}
                   sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-cover"
+                  className="object-contain lg:object-cover"
                 />
               ) : (
                 <video
@@ -71,7 +73,7 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
                   loop
                   playsInline
                   preload="metadata"
-                  className="absolute inset-0 size-full object-cover"
+                  className="absolute inset-0 size-full object-contain lg:object-cover"
                 />
               )}
             </button>
@@ -95,9 +97,10 @@ export function ProductGallery({ media, name, categorySlug }: { media: ProductMe
             <ArrowButton side="right" disabled={index === media.length - 1} onClick={() => goTo(index + 1)} />
           </>
         )}
-        <span className="pointer-events-none absolute top-3 right-3 hidden size-9 place-items-center rounded-full bg-ink-950/75 text-ivory/80 lg:grid">
+        <span className="pointer-events-none absolute top-3.5 right-15 hidden size-9 place-items-center rounded-full bg-ink-950/75 text-ivory/80 lg:grid">
           <Expand className="size-4" strokeWidth={1.5} />
         </span>
+        <ShareButton name={name} className="absolute top-3 right-3 z-10" />
       </div>
 
       {media.length > 1 && (

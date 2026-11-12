@@ -3,7 +3,7 @@
 import Image from "next/image";
 import {
   AnimatePresence,
-  motion,
+  m,
   useScroll,
   useTransform,
   type PanInfo,
@@ -79,7 +79,7 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
         if (e.key === "ArrowRight") go(index + 1, 1);
         if (e.key === "ArrowLeft") go(index - 1, -1);
       }}
-      className="grain relative isolate flex min-h-[88svh] flex-col overflow-hidden bg-ink-950 outline-none lg:min-h-[82vh]"
+      className="grain relative isolate flex min-h-[66svh] flex-col overflow-hidden bg-ink-950 outline-none lg:min-h-[82vh]"
     >
       {/* Light: slow-rotating golden rays + warm glow behind the centred cover */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -97,7 +97,7 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
       </div>
 
       {/* Swipe surface: the full-width cover image, below the fixed header */}
-      <motion.div
+      <m.div
         style={{ y: visualY }}
         drag={count > 1 ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
@@ -106,7 +106,7 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
         className="absolute inset-x-0 top-16 bottom-[26%] cursor-grab touch-pan-y active:cursor-grabbing lg:top-28 lg:right-12 lg:bottom-16 lg:left-[45%]"
       >
         <AnimatePresence initial={false} custom={dir} mode="popLayout">
-          <motion.div
+          <m.div
             key={slide.key}
             custom={dir}
             variants={{
@@ -139,9 +139,9 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
               sizes="(min-width: 1024px) 55vw, 100vw"
               className="pointer-events-none object-cover select-none"
             />
-          </motion.div>
+          </m.div>
         </AnimatePresence>
-      </motion.div>
+      </m.div>
 
       {/* Keep the overlaid copy legible */}
       <div
@@ -150,13 +150,13 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
       />
 
       {/* Copy: centred over the image on phones, left column on desktop */}
-      <motion.div
+      <m.div
         style={{ y: textY, opacity: fade }}
-        className="relative z-10 mx-auto mt-auto w-full max-w-site px-6 pb-20 lg:my-auto lg:px-12 lg:pt-24 lg:pb-0"
+        className="relative z-10 mx-auto mt-auto w-full max-w-site px-6 pb-16 lg:my-auto lg:px-12 lg:pt-24 lg:pb-0"
       >
         <div className="mx-auto flex max-w-2xl flex-col items-center text-center lg:mx-0 lg:max-w-[40%] lg:items-start lg:text-left">
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+            <m.div
               key={slide.key}
               className="flex flex-col items-center lg:items-start"
               initial="hidden"
@@ -187,28 +187,28 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
               </Item>
               {slide.subtitle && (
                 <Item>
-                  <p className="mt-4 max-w-xs text-sm leading-relaxed text-stone sm:max-w-md lg:text-base">
+                  <p className="mt-3 max-w-xs text-sm leading-relaxed lg:mt-4 text-stone sm:max-w-md lg:text-base">
                     {slide.subtitle}
                   </p>
                 </Item>
               )}
               {slide.ctaHref && (
                 <Item>
-                  <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                  <div className="mt-5 lg:mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
                     <ButtonLink href={slide.ctaHref} size="lg">
                       {slide.ctaLabel || "Shop now"}
                     </ButtonLink>
                   </div>
                 </Item>
               )}
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </div>
-      </motion.div>
+      </m.div>
 
       {/* Dots, centred */}
       {count > 1 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-8 z-10 mx-auto flex max-w-site items-center justify-center px-6 lg:px-12">
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 lg:bottom-8 z-10 mx-auto flex max-w-site items-center justify-center px-6 lg:px-12">
           {slides.map((s, i) => (
             <button
               key={s.key}
@@ -236,13 +236,13 @@ export function Hero({ slides: fromDb }: { slides: HeroSlide[] }) {
 
 function Item({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
+    <m.div
       variants={{
         hidden: { opacity: 0, y: 14 },
         show: { opacity: 1, y: 0, transition: { duration: 0.8, ease } },
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }

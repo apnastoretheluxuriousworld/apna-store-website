@@ -156,13 +156,13 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       for (const n of show) {
         toast(n.title, {
           description: n.body ?? undefined,
-          duration: 8000,
+          duration: 2000,
           action: { label: "View", onClick: () => open(n) },
         });
       }
       if (!show.length) {
         toast(`${fresh.length} new notifications`, {
-          duration: 8000,
+          duration: 2000,
           action: { label: "View", onClick: () => router.push("/admin/notifications") },
         });
       }

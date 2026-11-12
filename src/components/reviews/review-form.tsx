@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { CircleCheck, Loader2, Star } from "lucide-react";
 import { submitReview } from "@/app/(store)/account/reviews/actions";
 import { storeInputClass } from "@/components/account/fields";
@@ -26,7 +27,6 @@ export function ReviewForm({ productId, initial }: { productId: string; initial:
   const [ratingError, setRatingError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   if (done) {
     return (
@@ -53,18 +53,24 @@ export function ReviewForm({ productId, initial }: { productId: string; initial:
       setRatingError("Please choose a star rating");
       return;
     }
-    startTransition(async () => {
-      const res = await submitReview({ productId, rating, body, media });
-      if (res.ok) {
-        setDone(true);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-      else if (res.error === SIGNED_OUT_ERROR) goToSignIn();
-      else {
-        setError(res.error);
-        if (res.fieldErrors?.rating) setRatingError(res.fieldErrors.rating);
-      }
-    });
+    // Optimistic: show "Thank you" at once and save in the background. If the
+    // save fails, the form comes back with the customer's text and the reason.
+    setDone(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const failed = (message: string, ratingMessage?: string) => {
+      setDone(false);
+      setError(message);
+      if (ratingMessage) setRatingError(ratingMessage);
+      // Also a toast, in case they already moved on to another page.
+      toast.error("Your review wasn't saved", { description: message });
+    };
+    submitReview({ productId, rating, body, media })
+      .then((res) => {
+        if (res.ok) return;
+        if (res.error === SIGNED_OUT_ERROR) goToSignIn();
+        else failed(res.error, res.fieldErrors?.rating);
+      })
+      .catch(() => failed("No connection. Please check your internet and submit again."));
   }
 
   const shown = hover ?? rating;
@@ -134,8 +140,8 @@ export function ReviewForm({ productId, initial }: { productId: string; initial:
         </p>
       )}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending || uploading}>
-        {(pending || uploading) && <Loader2 className="size-4 animate-spin" />}
+      <Button type="submit" size="lg" className="w-full" disabled={uploading}>
+        {uploading && <Loader2 className="size-4 animate-spin" />}
         {uploading ? "Uploading…" : initial ? "Update review" : "Submit review"}
       </Button>
     </form>

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { SearchView } from "@/components/search/search-view";
 import { getStoreCategories } from "@/lib/data/categories";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Search", description: "Find watches, perfumes, handbags and more at Apna Store." };
 
 /** Static shell; results load in place from /api/search as the customer types (see SearchView). */

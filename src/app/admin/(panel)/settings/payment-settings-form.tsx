@@ -64,7 +64,7 @@ export function PaymentSettingsForm({ initial }: { initial: PaymentSettings }) {
 
   return (
     <form onSubmit={(e) => void handleSubmit(save)(e)} noValidate className={cn("space-y-3 lg:space-y-5", formState.isDirty && "pb-20 lg:pb-0")}>
-      <div className="grid gap-3 lg:grid-cols-2 lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-5">
         <Section
           title="UPI payment (scan & pay)"
           hint="Customers scan this QR, pay from their phone and upload a screenshot. You approve the payment on the order. Remove the QR to turn UPI off."

@@ -8,7 +8,7 @@ import { AlertCircle, Banknote, Gift, Loader2, Lock, QrCode, ShoppingBag } from 
 import { placeOrder, type AppliedCoupon } from "@/app/(store)/checkout/actions";
 import { FieldError, storeInputClass } from "@/components/account/fields";
 import { clearCart } from "@/components/cart/cart-store";
-import { CartSkeleton } from "@/components/cart/cart-view";
+import { CartSkeleton } from "@/components/ui/skeleton";
 import { useCartQuote } from "@/components/cart/use-cart-quote";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
@@ -222,7 +222,7 @@ function CheckoutForm({ prefill }: { prefill: CheckoutPrefill | null }) {
   );
 
   return (
-    <form onSubmit={submit} noValidate className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
+    <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
       <div className="space-y-4">
         <Step
           n={1}
@@ -393,7 +393,7 @@ function CheckoutForm({ prefill }: { prefill: CheckoutPrefill | null }) {
               Edit cart
             </Link>
           </div>
-          <ul className="max-h-72 space-y-3 overflow-y-auto pr-1" data-lenis-prevent>
+          <ul className="max-h-72 space-y-3 overflow-y-auto pr-1">
             {bundles.map((b) => (
               <li key={`offer:${b.id}`} className="rounded-lg border border-gold-500/25 bg-gold-500/5 p-2.5">
                 <span className="flex items-center gap-2">

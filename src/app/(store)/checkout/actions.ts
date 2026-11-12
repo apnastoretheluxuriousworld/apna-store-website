@@ -3,6 +3,7 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { after } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -372,6 +373,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
     const { notification } = pending;
     if (notification) after(() => announceToAdmins(notification).catch((e) => console.error("[checkout] announce", e)));
     updateTag(PRODUCTS_TAG); // stock changed → "Sold out" on cards
+    warmStore(); // rebuild the store pages' cache in the background
     if (user) revalidatePath("/account", "layout");
     return { ok: true, token: result.token, orderNumber: result.orderNumber };
   } catch (e) {

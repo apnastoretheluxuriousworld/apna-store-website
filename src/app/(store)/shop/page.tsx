@@ -8,6 +8,9 @@ import { Reveal, RevealGroup, RevealItem } from "@/components/motion/reveal";
 import { getHomeCollectionSlugs, getStoreCategories } from "@/lib/data/categories";
 import { getCollectionRowProducts, getProductCounts } from "@/lib/data/products";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "The Boutique" };
 
 export default async function ShopPage() {
@@ -37,6 +40,7 @@ export default async function ShopPage() {
             <RevealItem key={c.slug}>
               <Link
                 href={`/shop/${c.slug}`}
+                prefetch
                 className="group relative block aspect-4/5 overflow-hidden rounded-xl border border-gold-500/10 bg-ink-800"
               >
                 {cover ? (

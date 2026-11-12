@@ -11,6 +11,9 @@ import { ReviewForm } from "@/components/reviews/review-form";
 import { requireCustomerView } from "@/lib/auth/session";
 import { getReviewTarget } from "@/lib/data/reviews";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Write a review", robots: { index: false } };
 
 export default function ReviewPage({ params }: PageProps<"/account/reviews/[productId]">) {

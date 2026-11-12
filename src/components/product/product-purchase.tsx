@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { WhatsappIcon } from "@/components/brand/social-icons";
@@ -134,7 +134,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
           <p className={cn("mb-2.5 text-[0.65rem] uppercase tracking-[0.22em]", needsChoice && !variant ? "text-red-300" : "text-stone")}>
             {variant ? <>Option · <span className="text-ivory">{variant.label}</span></> : "Choose an option"}
           </p>
-          <motion.div
+          <m.div
             className="flex flex-wrap gap-2"
             animate={needsChoice && !variant ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
             transition={{ duration: 0.4 }}
@@ -161,7 +161,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
                 </button>
               );
             })}
-          </motion.div>
+          </m.div>
         </div>
       )}
 
@@ -206,9 +206,9 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
             }}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-11 items-center justify-center gap-2 rounded-md text-xs tracking-[0.18em] text-stone uppercase transition-colors hover:text-gold-300 sm:col-span-2"
+            className="flex h-12 items-center justify-center gap-2.5 rounded-md border border-[#25D366]/45 bg-[#25D366]/10 text-xs font-medium tracking-[0.18em] text-ivory uppercase shadow-[0_0_24px_-10px_rgba(37,211,102,0.6)] transition-colors hover:border-[#25D366]/80 hover:bg-[#25D366]/15 active:bg-[#25D366]/20 sm:col-span-2"
           >
-            <WhatsappIcon className="size-4 text-gold-400" /> Ask on WhatsApp
+            <WhatsappIcon className="size-4.5 text-[#25D366]" /> Ask on WhatsApp
           </a>
         )}
       </div>
@@ -217,7 +217,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
       <div aria-live="polite" className="min-h-0">
         <AnimatePresence>
           {note && (
-            <motion.p
+            <m.p
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -236,7 +236,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
                   View cart →
                 </Link>
               </span>
-            </motion.p>
+            </m.p>
           )}
         </AnimatePresence>
       </div>
@@ -244,7 +244,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
       {/* Phones: sticky price + Add to bag above the bottom navigation */}
       <AnimatePresence>
         {showSticky && !soldOut && (
-          <motion.div
+          <m.div
             className="fixed inset-x-0 z-40 border-t border-gold-500/15 bg-ink-950/[0.97] px-4 py-2.5 lg:hidden"
             style={{ bottom: "calc(var(--bottom-bar-h) + env(safe-area-inset-bottom))" }}
             initial={{ y: "100%", opacity: 0 }}
@@ -269,7 +269,7 @@ export function ProductPurchase({ product, whatsappUrl }: { product: Props; what
                 )}
               </Button>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </>

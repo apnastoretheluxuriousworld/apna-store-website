@@ -2,6 +2,7 @@
 
 import { and, eq, like, notInArray, or, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -17,6 +18,7 @@ type Tx = Parameters<Parameters<ReturnType<typeof db>["transaction"]>[0]>[0];
 /** Refresh the storefront's cached products and the admin's client cache. */
 function productsChanged() {
   updateTag(PRODUCTS_TAG);
+  warmStore(); // rebuild the store pages' cache in the background
   revalidatePath("/admin", "layout");
 }
 

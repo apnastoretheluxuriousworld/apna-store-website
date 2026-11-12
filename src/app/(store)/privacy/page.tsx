@@ -3,6 +3,9 @@ import Link from "next/link";
 import { InfoPage, Prose } from "@/components/ui/info-page";
 import { getStoreInfo } from "@/lib/data/settings";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How Apna Store collects, uses and protects your personal information.",

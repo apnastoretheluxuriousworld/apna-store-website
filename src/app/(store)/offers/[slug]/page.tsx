@@ -8,7 +8,10 @@ import { OfferPicker } from "@/components/offers/offer-picker";
 import { getStoreOffer } from "@/lib/data/offers";
 import { formatPrice } from "@/lib/format";
 import { describeOffer } from "@/lib/validation/offer";
-import { PageLoader } from "@/components/ui/brand-loader";
+import { OfferSkeleton } from "@/components/ui/skeleton";
+
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
 
 type Params = PageProps<"/offers/[slug]">["params"];
 
@@ -47,12 +50,14 @@ async function OfferContent({ params }: { params: Params }) {
           Home
         </Link>
         <ChevronRight className="size-3" />
-        <span>Offers</span>
+        <Link href="/offers" className="hover:text-gold-400">
+          Offers
+        </Link>
         <ChevronRight className="size-3" />
         <span className="text-stone">{offer.title}</span>
       </nav>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-12">
         <div className="lg:sticky lg:top-32 lg:self-start">
           <div className="relative aspect-4/5 max-h-[70svh] w-full overflow-hidden bg-ink-950 sm:mx-auto sm:max-w-md sm:rounded-2xl sm:border sm:border-gold-500/20 lg:max-h-none lg:max-w-none">
             <Image src={offer.coverUrl} alt={offer.title} fill priority sizes="(min-width: 1024px) 416px, (min-width: 640px) 448px, 100vw" className="object-cover" />
@@ -84,8 +89,4 @@ async function OfferContent({ params }: { params: Params }) {
       </div>
     </div>
   );
-}
-
-function OfferSkeleton() {
-  return <PageLoader label="Loading offer" />;
 }

@@ -20,6 +20,7 @@ export function SectionHeader({
       {href && (
         <Link
           href={href}
+          prefetch
           className="group flex items-center gap-1 text-xs text-gold-400 transition-colors hover:text-gold-300"
         >
           {linkLabel}

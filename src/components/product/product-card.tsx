@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { IntentLink } from "@/components/ui/intent-link";
 import { Star } from "lucide-react";
 import { CategoryIcon } from "@/components/brand/category-icon";
 import { AddToBag } from "@/components/cart/add-to-bag";
@@ -10,9 +10,9 @@ import type { StoreProduct } from "@/lib/data/products";
 export function ProductCard({ product }: { product: StoreProduct }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl border border-gold-500/10 bg-ink-800/70 transition-colors duration-500 hover:border-gold-500/30">
-      <Link
+      <IntentLink
         href={`/shop/${product.categorySlug}/${product.slug}`}
-        className="relative block aspect-4/5 overflow-hidden bg-ink-950 lg:aspect-square"
+        className="relative block aspect-6/5 overflow-hidden bg-ink-950 transition-opacity active:opacity-75 sm:aspect-square"
         aria-label={product.name}
       >
         {product.image ? (
@@ -40,16 +40,16 @@ export function ProductCard({ product }: { product: StoreProduct }) {
             </div>
           </>
         )}
-      </Link>
+      </IntentLink>
 
-      <div className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col p-2.5 lg:p-3">
         <h3 className="truncate text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-gold-400 lg:text-xs">
-          <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="hover:text-gold-300">
+          <IntentLink href={`/shop/${product.categorySlug}/${product.slug}`} className="hover:text-gold-300">
             {product.name}
-          </Link>
+          </IntentLink>
         </h3>
-        {product.subtitle && <p className="mt-0.5 truncate text-[0.7rem] text-stone">{product.subtitle}</p>}
-        <p className="mt-1.5 flex items-baseline gap-2 text-sm font-medium text-ivory">
+        {product.subtitle && <p className="mt-0.5 hidden truncate text-[0.7rem] text-stone sm:block">{product.subtitle}</p>}
+        <p className="mt-1 flex items-baseline gap-2 text-sm font-medium text-ivory">
           {formatPrice(product.price)}
           {product.compareAtPrice != null && product.compareAtPrice > product.price && (
             <s className="text-[0.7rem] font-normal text-mute">{formatPrice(product.compareAtPrice)}</s>
@@ -72,7 +72,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
             </span>
           </div>
         )}
-        <div className="mt-auto pt-3">
+        <div className="mt-auto pt-2.5 lg:pt-3">
           <AddToBag product={product} />
         </div>
       </div>

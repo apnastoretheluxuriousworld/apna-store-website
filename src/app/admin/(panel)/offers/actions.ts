@@ -2,6 +2,7 @@
 
 import { and, eq, inArray, like, ne, or, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
+import { warmStore } from "@/lib/warm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { db, schema as s } from "@/lib/db";
@@ -15,6 +16,7 @@ import { pgCode, zodFieldErrors, type ActionResult } from "@/lib/actions";
 /** Refresh the homepage strip, the offer pages and the admin's client cache. */
 function offersChanged() {
   updateTag(OFFERS_TAG);
+  warmStore(); // rebuild the store pages' cache in the background
   revalidatePath("/admin", "layout");
 }
 

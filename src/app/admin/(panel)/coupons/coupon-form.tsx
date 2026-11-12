@@ -148,7 +148,7 @@ export function CouponForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className={cn("space-y-3 lg:space-y-5 lg:pb-0", showActions && "pb-20")}>
-      <div className="grid gap-3 lg:grid-cols-3 lg:gap-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-5">
         <div className="space-y-3 lg:col-span-2 lg:space-y-5">
           <Card className="space-y-4">
             <Field

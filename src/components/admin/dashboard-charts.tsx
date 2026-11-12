@@ -62,7 +62,7 @@ export function DashboardChartsView({ data }: { data: DashboardCharts }) {
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
         {METRICS.map((m) => (
           <MetricCard key={m.key} metric={m.key} title={m.title} note={m.note} data={r} range={range} />
         ))}

@@ -33,7 +33,7 @@ export async function ProductReviews({ productId }: { productId: string }) {
           No reviews yet for this piece.
         </p>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[18rem_1fr] lg:gap-12">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[18rem_1fr] lg:gap-12">
           <aside className="h-fit rounded-xl border border-gold-500/15 bg-ink-800/60 p-6 lg:sticky lg:top-28">
             <div className="flex items-end gap-3">
               <span className="font-serif text-6xl leading-none font-light text-gold">{summary.average?.toFixed(1)}</span>

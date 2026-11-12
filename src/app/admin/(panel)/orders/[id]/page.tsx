@@ -45,7 +45,7 @@ export default async function AdminOrderPage({
         actions={<OrderStatusBadge status={o.status} />}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <Card>
             <h2 className="mb-3 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-ivory">

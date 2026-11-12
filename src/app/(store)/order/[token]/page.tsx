@@ -8,6 +8,9 @@ import { OrderView } from "@/components/account/order-view";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getOrderByToken } from "@/lib/data/orders";
 
+/** Navigations here must show the page at once; `next dev` reports anything that blocks. */
+export const instant = true;
+
 export const metadata: Metadata = { title: "Your order", robots: { index: false, follow: false } };
 
 /**
